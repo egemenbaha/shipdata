@@ -19,6 +19,8 @@ export type DbAlertDetails = {
   prev_heading?: number;
   new_heading?: number;
   delta_deg?: number;
+  // SPOOFING
+  implied_speed_kn?: number;
   // Free-form passthrough
   [k: string]: unknown;
 };

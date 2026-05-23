@@ -16,6 +16,30 @@ const DEFAULT_FILTERS = ["PositionReport", "ShipStaticData"];
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// --- Throttle & spoofing detection (per worker instance) -------------------
+const WRITE_THROTTLE_MS = 10_000;      // per-vessel DB write floor
+const MAX_PLAUSIBLE_KN = 50;           // > this implies teleportation
+const SPOOF_WINDOW_H = 0.25;           // ignore deltas older than 15 min
+const SPOOF_COOLDOWN_MS = 10 * 60_000; // don't re-raise within 10 min
+
+const lastWrite = new Map<string, number>();
+const lastPos = new Map<string, { lat: number; lon: number; t: number }>();
+const lastSpoofAt = new Map<string, number>();
+
+function haversineNm(
+  a: { lat: number; lon: number },
+  b: { lat: number; lon: number },
+) {
+  const R = 3440.065; // earth radius in nautical miles
+  const toR = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * toR;
+  const dLon = (b.lon - a.lon) * toR;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * toR) * Math.cos(b.lat * toR) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
 // PostgREST helpers — service role, RLS bypassed for ingest only.
 async function pgrest(
   path: string,
@@ -35,6 +59,60 @@ function ewktPoint(lon: number, lat: number) {
   return `SRID=4326;POINT(${lon} ${lat})`;
 }
 
+async function raiseSpoofing(
+  mmsi: string,
+  impliedKn: number,
+  lat: number,
+  lon: number,
+) {
+  const now = Date.now();
+  if (now - (lastSpoofAt.get(mmsi) ?? 0) < SPOOF_COOLDOWN_MS) return;
+  lastSpoofAt.set(mmsi, now);
+
+  // Skip if there's already an unresolved SPOOFING alert for this vessel.
+  const check = await pgrest(
+    `alerts?mmsi=eq.${mmsi}&alert_type=eq.SPOOFING&resolved=eq.false&select=id&limit=1`,
+    { method: "GET" },
+  );
+  if (check.ok) {
+    const rows = (await check.json()) as Array<{ id: string }>;
+    if (rows.length > 0) return;
+  }
+
+  const res = await pgrest("alerts", {
+    method: "POST",
+    body: JSON.stringify({
+      mmsi,
+      alert_type: "SPOOFING",
+      risk_score: 85,
+      lat,
+      lng: lon,
+      message: `Implied speed ${Math.round(impliedKn)} kn — physically impossible`,
+      details: { implied_speed_kn: Math.round(impliedKn) },
+    }),
+    prefer: "return=minimal",
+  });
+  if (!res.ok) {
+    console.warn("[ais-proxy] spoofing alert insert", res.status, await res.text());
+  }
+}
+
+async function resolveDarkAlerts(mmsi: string) {
+  // A vessel just reported in — clear any unresolved DARK alerts.
+  const res = await pgrest(
+    `alerts?mmsi=eq.${mmsi}&alert_type=eq.DARK&resolved=eq.false`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ resolved: true }),
+      prefer: "return=minimal",
+    },
+  );
+  if (!res.ok && res.status !== 404) {
+    console.warn("[ais-proxy] resolve dark", res.status, await res.text());
+  }
+}
+
+
 async function persistPosition(mmsi: string, msg: Record<string, unknown>) {
   const meta = (msg.MetaData ?? {}) as Record<string, unknown>;
   const pr = ((msg.Message ?? {}) as Record<string, unknown>)
@@ -48,8 +126,35 @@ async function persistPosition(mmsi: string, msg: Record<string, unknown>) {
   const speed = Number(pr.Sog ?? 0);
   const cog = Number(pr.Cog ?? 0);
   const heading = Number(pr.TrueHeading ?? pr.Cog ?? 0);
+  const now = Date.now();
   const ts = new Date().toISOString();
   const geom = ewktPoint(lon, lat);
+
+  // --- Spoofing check: implied speed vs. previous fix ---------------------
+  const prev = lastPos.get(mmsi);
+  if (prev) {
+    const dtH = (now - prev.t) / 3.6e6;
+    if (dtH > 0 && dtH < SPOOF_WINDOW_H) {
+      const kn = haversineNm({ lat, lon }, prev) / dtH;
+      if (kn > MAX_PLAUSIBLE_KN) {
+        // Fire-and-forget — don't block ingest on alert insert.
+        raiseSpoofing(mmsi, kn, lat, lon).catch((e) =>
+          console.warn("[ais-proxy] spoof", e),
+        );
+      }
+    }
+  }
+  lastPos.set(mmsi, { lat, lon, t: now });
+
+  // --- Vessel came back: resolve any active DARK alert --------------------
+  // Fire-and-forget; PATCH is idempotent.
+  resolveDarkAlerts(mmsi).catch((e) =>
+    console.warn("[ais-proxy] resolve-dark", e),
+  );
+
+  // --- Throttle DB writes per vessel --------------------------------------
+  if (now - (lastWrite.get(mmsi) ?? 0) < WRITE_THROTTLE_MS) return;
+  lastWrite.set(mmsi, now);
 
   // INSERT into positions (history)
   const posRes = await pgrest("positions", {
