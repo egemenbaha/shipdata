@@ -92,7 +92,9 @@ export function AlertFeed() {
             </p>
           </div>
         ) : (
-          alerts.map((a) => <AlertRow key={a.id} alert={a} now={currentTime} />)
+          alerts.map((a) => (
+            <AlertRow key={a.id} alert={a} now={currentTime} onClick={() => focusVessel(a.mmsi)} />
+          ))
         )}
       </div>
     </div>
