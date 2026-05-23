@@ -2,7 +2,7 @@ import { EyeOff, Radio, Inbox, ArrowLeftRight } from "lucide-react";
 import { useTimeline } from "@/state/timeline";
 import { formatUtc, type Alert } from "@/lib/derive";
 
-function AlertRow({ alert, now }: { alert: Alert; now: number }) {
+function AlertRow({ alert, now, onClick }: { alert: Alert; now: number; onClick: () => void }) {
   const meta =
     alert.type === "dark"
       ? { Icon: EyeOff, accent: "var(--danger)", label: "SIGNAL LOSS" }
