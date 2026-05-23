@@ -117,7 +117,7 @@ export function AlertFeed() {
     const live = dbAlerts.map(dbToFeed);
     // Dedupe: a live DB alert for an MMSI hides the computed one of the same type.
     const liveKey = new Set(live.map((a) => `${a.mmsi}-${a.type}`));
-    const filtered = alerts.filter((a) => !liveKey.has(`${a.mmsi}-${a.type}`));
+    const filtered: FeedAlert[] = alerts.filter((a) => !liveKey.has(`${a.mmsi}-${a.type}`));
     return [...live, ...filtered].sort(
       (a, b) =>
         (b.riskScore ?? b.severity * 30) - (a.riskScore ?? a.severity * 30) ||
