@@ -56,6 +56,93 @@ export type Database = {
         }
         Relationships: []
       }
+      positions: {
+        Row: {
+          cog: number | null
+          geom: string | null
+          heading: number | null
+          id: number
+          lat: number
+          lon: number
+          mmsi: string
+          speed: number | null
+          ts: string
+        }
+        Insert: {
+          cog?: number | null
+          geom?: string | null
+          heading?: number | null
+          id?: number
+          lat: number
+          lon: number
+          mmsi: string
+          speed?: number | null
+          ts?: string
+        }
+        Update: {
+          cog?: number | null
+          geom?: string | null
+          heading?: number | null
+          id?: number
+          lat?: number
+          lon?: number
+          mmsi?: string
+          speed?: number | null
+          ts?: string
+        }
+        Relationships: []
+      }
+      vessels: {
+        Row: {
+          created_at: string
+          imo: number | null
+          last_cog: number | null
+          last_geom: string | null
+          last_heading: number | null
+          last_lat: number | null
+          last_lon: number | null
+          last_seen: string | null
+          last_speed: number | null
+          mmsi: string
+          name: string | null
+          ship_type: number | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          imo?: number | null
+          last_cog?: number | null
+          last_geom?: string | null
+          last_heading?: number | null
+          last_lat?: number | null
+          last_lon?: number | null
+          last_seen?: string | null
+          last_speed?: number | null
+          mmsi: string
+          name?: string | null
+          ship_type?: number | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          imo?: number | null
+          last_cog?: number | null
+          last_geom?: string | null
+          last_heading?: number | null
+          last_lat?: number | null
+          last_lon?: number | null
+          last_seen?: string | null
+          last_speed?: number | null
+          mmsi?: string
+          name?: string | null
+          ship_type?: number | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
