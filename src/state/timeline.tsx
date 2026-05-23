@@ -61,13 +61,13 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const allDerived = useMemo(() => deriveAll(allVessels, currentTime), [currentTime]);
 
   const theaterDerived = useMemo(() => {
-    const out = { med: [], black: [], hormuz: [] } as Record<TheaterId, DerivedVessel[]>;
+    const out = { med: [], black: [], hormuz: [], straits: [] } as Record<TheaterId, DerivedVessel[]>;
     for (const d of allDerived) out[d.vessel.theaterId].push(d);
     return out;
   }, [allDerived]);
 
   const theaterAlerts = useMemo(() => {
-    const out = { med: [], black: [], hormuz: [] } as Record<TheaterId, Alert[]>;
+    const out = { med: [], black: [], hormuz: [], straits: [] } as Record<TheaterId, Alert[]>;
     (Object.keys(out) as TheaterId[]).forEach((id) => {
       const rdv = computeRendezvous(theaterDerived[id]);
       out[id] = computeAlerts(theaterDerived[id], currentTime, rdv);
