@@ -31,6 +31,7 @@ export function TacticalMap() {
         subdomains="abcd"
         maxZoom={19}
       />
+      <VesselLayer />
       <MapReady />
     </MapContainer>
   );
