@@ -35,46 +35,65 @@ export function useVessels(): {
 
   useEffect(() => {
     let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    // 1) initial snapshot — cast via `any` because the generated Supabase
-    // types don't include `vessels` until the schema cache refreshes.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any)
-      .from("vessels")
-      .select("*")
-      .then(({ data, error }: { data: VesselRow[] | null; error: { message: string } | null }) => {
-        if (cancelled) return;
-        if (error) {
-          console.warn("[vessels] load failed", error.message);
-          setStatus("error");
-          return;
-        }
-        const map = new Map<string, VesselRow>();
-        for (const row of data ?? []) map.set(row.mmsi, row);
-        setVessels(map);
-        setStatus("ready");
-      });
+    try {
+      // 1) initial snapshot — cast via `any` because the generated Supabase
+      // types may not include `vessels` until the schema cache refreshes.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any)
+        .from("vessels")
+        .select("*")
+        .then(
+          ({ data, error }: { data: VesselRow[] | null; error: { message: string } | null }) => {
+            if (cancelled) return;
+            if (error) {
+              console.warn("[vessels] load failed", error.message);
+              setStatus("error");
+              return;
+            }
+            const map = new Map<string, VesselRow>();
+            for (const row of data ?? []) {
+              if (row?.mmsi) map.set(row.mmsi, row);
+            }
+            setVessels(map);
+            setStatus("ready");
+          },
+          (err: unknown) => {
+            if (cancelled) return;
+            console.warn("[vessels] load threw", err);
+            setStatus("error");
+          },
+        );
 
-    // 2) realtime — apply both INSERT and UPDATE events
-    const channel = supabase
-      .channel("vessels-live")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "vessels" },
-        (payload) => {
-          const row = payload.new as VesselRow | undefined;
-          if (!row?.mmsi) return;
-          const current = pendingRef.current ?? new Map(vesselsRef.current);
-          current.set(row.mmsi, row);
-          scheduleFlush(current);
-        },
-      )
-      .subscribe();
+      // 2) realtime — apply both INSERT and UPDATE events
+      channel = supabase
+        .channel("vessels-live")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "vessels" },
+          (payload) => {
+            try {
+              const row = payload.new as VesselRow | undefined;
+              if (!row?.mmsi) return;
+              const current = pendingRef.current ?? new Map(vesselsRef.current);
+              current.set(row.mmsi, row);
+              scheduleFlush(current);
+            } catch (err) {
+              console.warn("[vessels] realtime handler error", err);
+            }
+          },
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn("[vessels] subscription setup failed", err);
+      setStatus("error");
+    }
 
     return () => {
       cancelled = true;
       if (flushRef.current) clearTimeout(flushRef.current);
-      void supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
