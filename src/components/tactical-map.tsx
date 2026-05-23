@@ -51,6 +51,7 @@ export function TacticalMap() {
       <VesselLayer />
       <RendezvousLayer />
       <MapReady />
+      <MapFlyController />
     </MapContainer>
   );
 }
