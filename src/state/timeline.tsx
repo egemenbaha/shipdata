@@ -1,5 +1,12 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
-import { vessels, TIMELINE_END } from "@/data/vessels";
+import {
+  GLOBAL_VIEW,
+  THEATERS,
+  THEATER_VESSELS,
+  TIMELINE_END,
+  vessels as allVessels,
+  type TheaterId,
+} from "@/data/vessels";
 import {
   computeAlerts,
   computeKpis,
@@ -11,12 +18,20 @@ import {
   type Rendezvous,
 } from "@/lib/derive";
 
-export type FlyRequest = { mmsi: string; lat: number; lng: number; nonce: number };
+export type FlyRequest = {
+  mmsi: string | null;
+  lat: number;
+  lng: number;
+  zoom?: number;
+  nonce: number;
+};
+
+export type TheaterView = TheaterId | "global";
 
 type TimelineContextValue = {
   currentTime: number;
   setCurrentTime: (t: number) => void;
-  derived: DerivedVessel[];
+  derived: DerivedVessel[]; // filtered to current theater (all if global)
   rendezvous: Rendezvous[];
   kpis: Kpis;
   alerts: Alert[];
@@ -26,6 +41,10 @@ type TimelineContextValue = {
   focusVessel: (mmsi: string) => void;
   playing: boolean;
   setPlaying: (p: boolean) => void;
+  theater: TheaterView;
+  setTheater: (t: TheaterView) => void;
+  theaterDerived: Record<TheaterId, DerivedVessel[]>;
+  theaterAlerts: Record<TheaterId, Alert[]>;
 };
 
 const TimelineContext = createContext<TimelineContextValue | null>(null);
@@ -35,25 +54,72 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const [selectedMmsi, setSelectedMmsi] = useState<string | null>(null);
   const [flyRequest, setFlyRequest] = useState<FlyRequest | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [theater, setTheaterState] = useState<TheaterView>("med");
   const nonceRef = useRef(0);
 
-  const derived = useMemo(() => deriveAll(vessels, currentTime), [currentTime]);
+  // Derive all vessels once; filter per view for display.
+  const allDerived = useMemo(() => deriveAll(allVessels, currentTime), [currentTime]);
+
+  const theaterDerived = useMemo(() => {
+    const out = { med: [], black: [], hormuz: [] } as Record<TheaterId, DerivedVessel[]>;
+    for (const d of allDerived) out[d.vessel.theaterId].push(d);
+    return out;
+  }, [allDerived]);
+
+  const theaterAlerts = useMemo(() => {
+    const out = { med: [], black: [], hormuz: [] } as Record<TheaterId, Alert[]>;
+    (Object.keys(out) as TheaterId[]).forEach((id) => {
+      const rdv = computeRendezvous(theaterDerived[id]);
+      out[id] = computeAlerts(theaterDerived[id], currentTime, rdv);
+    });
+    return out;
+  }, [theaterDerived, currentTime]);
+
+  const derived = theater === "global" ? allDerived : theaterDerived[theater];
   const rendezvous = useMemo(() => computeRendezvous(derived), [derived]);
+  const alerts = useMemo(
+    () => computeAlerts(derived, currentTime, rendezvous),
+    [derived, currentTime, rendezvous],
+  );
+  const kpis = useMemo(() => computeKpis(derived, rendezvous), [derived, rendezvous]);
+
+  const requestFly = useCallback(
+    (req: Omit<FlyRequest, "nonce">) => {
+      nonceRef.current += 1;
+      setFlyRequest({ ...req, nonce: nonceRef.current });
+    },
+    [],
+  );
+
+  const setTheater = useCallback(
+    (t: TheaterView) => {
+      setTheaterState(t);
+      setSelectedMmsi(null);
+      if (t === "global") {
+        requestFly({ mmsi: null, lat: GLOBAL_VIEW.center[0], lng: GLOBAL_VIEW.center[1], zoom: GLOBAL_VIEW.zoom });
+      } else {
+        const cfg = THEATERS.find((x) => x.id === t)!;
+        requestFly({ mmsi: null, lat: cfg.center[0], lng: cfg.center[1], zoom: cfg.zoom });
+      }
+    },
+    [requestFly],
+  );
 
   const focusVessel = useCallback(
     (mmsi: string) => {
-      setSelectedMmsi(mmsi);
-      const v = vessels.find((x) => x.mmsi === mmsi);
+      const v = allVessels.find((x) => x.mmsi === mmsi);
       if (!v) return;
+      // Auto-switch theater if the vessel is in a different one
+      if (theater !== "global" && v.theaterId !== theater) {
+        setTheaterState(v.theaterId);
+      }
+      setSelectedMmsi(mmsi);
       const pt =
         [...v.track].reverse().find((p) => p.t <= currentTime) ??
         v.track[v.track.length - 1];
-      if (pt) {
-        nonceRef.current += 1;
-        setFlyRequest({ mmsi, lat: pt.lat, lng: pt.lng, nonce: nonceRef.current });
-      }
+      if (pt) requestFly({ mmsi, lat: pt.lat, lng: pt.lng, zoom: 7 });
     },
-    [currentTime],
+    [currentTime, theater, requestFly],
   );
 
   const value = useMemo<TimelineContextValue>(
@@ -62,16 +128,34 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
       setCurrentTime,
       derived,
       rendezvous,
-      kpis: computeKpis(derived, rendezvous),
-      alerts: computeAlerts(derived, currentTime, rendezvous),
+      kpis,
+      alerts,
       selectedMmsi,
       setSelectedMmsi,
       flyRequest,
       focusVessel,
       playing,
       setPlaying,
+      theater,
+      setTheater,
+      theaterDerived,
+      theaterAlerts,
     }),
-    [currentTime, derived, rendezvous, selectedMmsi, flyRequest, focusVessel, playing],
+    [
+      currentTime,
+      derived,
+      rendezvous,
+      kpis,
+      alerts,
+      selectedMmsi,
+      flyRequest,
+      focusVessel,
+      playing,
+      theater,
+      setTheater,
+      theaterDerived,
+      theaterAlerts,
+    ],
   );
 
   return <TimelineContext.Provider value={value}>{children}</TimelineContext.Provider>;
