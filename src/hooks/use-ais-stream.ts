@@ -16,11 +16,18 @@ export type LiveShip = {
 // Bounding box per user spec — Turkish Straits + Marmara.
 const BBOX: [number, number][][] = [[[40.0, 26.0], [41.7, 30.3]]];
 
-const STREAM_URL = "wss://stream.aisstream.io/v0/stream";
+// Build the secure backend proxy URL. The proxy holds the AISStream API key
+// server-side; the browser never sees it.
+function buildProxyUrl(): string | null {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  if (!supabaseUrl) return null;
+  // https://<ref>.supabase.co  →  wss://<ref>.supabase.co/functions/v1/ais-proxy
+  return supabaseUrl.replace(/^http/, "ws") + "/functions/v1/ais-proxy";
+}
 
 /**
- * Connects to AISStream.io and exposes a live MMSI → LiveShip map.
- * The map is replaced on every update so React detects the change.
+ * Connects to our secure AIS proxy edge function and exposes a live MMSI →
+ * LiveShip map. The API key stays on the server — never shipped to the client.
  */
 export function useAisStream(): {
   ships: Map<string, LiveShip>;
@@ -35,8 +42,8 @@ export function useAisStream(): {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const apiKey = import.meta.env.VITE_AISSTREAM_API_KEY as string | undefined;
-    if (!apiKey) {
+    const proxyUrl = buildProxyUrl();
+    if (!proxyUrl) {
       setStatus("no-key");
       return;
     }
