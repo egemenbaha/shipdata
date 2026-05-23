@@ -36,11 +36,13 @@ export function useVessels(): {
   useEffect(() => {
     let cancelled = false;
 
-    // 1) initial snapshot
-    supabase
+    // 1) initial snapshot — cast via `any` because the generated Supabase
+    // types don't include `vessels` until the schema cache refreshes.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
       .from("vessels")
       .select("*")
-      .then(({ data, error }) => {
+      .then(({ data, error }: { data: VesselRow[] | null; error: { message: string } | null }) => {
         if (cancelled) return;
         if (error) {
           console.warn("[vessels] load failed", error.message);
@@ -48,7 +50,7 @@ export function useVessels(): {
           return;
         }
         const map = new Map<string, VesselRow>();
-        for (const row of (data ?? []) as VesselRow[]) map.set(row.mmsi, row);
+        for (const row of data ?? []) map.set(row.mmsi, row);
         setVessels(map);
         setStatus("ready");
       });
