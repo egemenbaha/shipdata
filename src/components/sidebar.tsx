@@ -1,11 +1,13 @@
 import { Anchor, Activity } from "lucide-react";
 import { KpiPanel } from "./kpi-panel";
 import { AlertFeed } from "./alert-feed";
+import { useTimeline } from "@/state/timeline";
+import { formatUtc } from "@/lib/derive";
 
 export function Sidebar() {
+  const { currentTime } = useTimeline();
   return (
-    <aside className="flex h-full w-[340px] flex-col border-r border-border bg-sidebar">
-      {/* Header */}
+    <aside className="flex h-full w-[340px] min-w-[340px] flex-col border-r border-border bg-sidebar">
       <div className="border-b border-border bg-surface-0 px-3 py-3">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-[var(--cyan)]/10 ring-1 ring-[var(--cyan)]/40">
@@ -29,14 +31,14 @@ export function Sidebar() {
       </div>
 
       <KpiPanel />
-
       <AlertFeed />
 
-      {/* Footer status */}
       <div className="border-t border-border bg-surface-0 px-3 py-1.5">
         <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
-          <span>AIS · OFFLINE</span>
-          <span className="tabular-nums">UTC 00:00:00</span>
+          <span>AIS · SYNTHETIC</span>
+          <span className="tabular-nums text-[var(--cyan)]">
+            UTC {formatUtc(currentTime)}
+          </span>
         </div>
       </div>
     </aside>
