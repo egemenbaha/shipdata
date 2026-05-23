@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
+import { EyeOff, Radio, ArrowLeftRight } from "lucide-react";
 import { Sidebar } from "@/components/sidebar";
 import { TimelineProvider, useTimeline } from "@/state/timeline";
 import { formatUtc } from "@/lib/derive";
@@ -70,7 +71,12 @@ function MapStage() {
 }
 
 function HudOverlays() {
-  const { currentTime, kpis } = useTimeline();
+  const { currentTime, kpis, alerts } = useTimeline();
+  const counts = {
+    dark: alerts.filter((a) => a.type === "dark").length,
+    spoofing: alerts.filter((a) => a.type === "spoofing").length,
+    rendezvous: alerts.filter((a) => a.type === "rendezvous").length,
+  };
   return (
     <>
       <div className="pointer-events-none absolute left-3 top-3 z-[400] rounded-sm border border-border bg-surface-0/80 px-2.5 py-1.5 backdrop-blur-md">
@@ -89,6 +95,19 @@ function HudOverlays() {
         </span>
       </div>
 
+      <div className="pointer-events-none absolute left-1/2 top-3 z-[400] flex -translate-x-1/2 items-center gap-0 overflow-hidden rounded-sm border border-border bg-surface-0/85 backdrop-blur-md">
+        <CountChip icon={EyeOff} label="DARK" value={counts.dark} accent="var(--danger)" />
+        <span className="h-4 w-px bg-border" />
+        <CountChip icon={Radio} label="SPOOF" value={counts.spoofing} accent="var(--danger)" />
+        <span className="h-4 w-px bg-border" />
+        <CountChip
+          icon={ArrowLeftRight}
+          label="STS"
+          value={counts.rendezvous}
+          accent="var(--amber)"
+        />
+      </div>
+
       <div className="pointer-events-none absolute bottom-3 left-3 z-[400] flex flex-wrap gap-2">
         <Legend swatch="nominal" label="Nominal" />
         <Legend swatch="amber" label="Course Deviation" />
@@ -98,6 +117,38 @@ function HudOverlays() {
     </>
   );
 }
+
+function CountChip({
+  icon: Icon,
+  label,
+  value,
+  accent,
+}: {
+  icon: typeof EyeOff;
+  label: string;
+  value: number;
+  accent: string;
+}) {
+  const dim = value === 0;
+  return (
+    <div className="flex items-center gap-1.5 px-2.5 py-1.5">
+      <Icon
+        className="h-3 w-3"
+        style={{ color: dim ? "var(--muted-foreground)" : accent, opacity: dim ? 0.5 : 1 }}
+      />
+      <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+        {label}
+      </span>
+      <span
+        className="font-mono text-[11px] tabular-nums"
+        style={{ color: dim ? "var(--muted-foreground)" : accent }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 
 function Legend({ swatch, label }: { swatch: "nominal" | "amber" | "danger" | "corridor"; label: string }) {
   const map = {

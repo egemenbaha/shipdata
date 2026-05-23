@@ -2,7 +2,7 @@ import { EyeOff, Radio, Inbox, ArrowLeftRight } from "lucide-react";
 import { useTimeline } from "@/state/timeline";
 import { formatUtc, type Alert } from "@/lib/derive";
 
-function AlertRow({ alert, now }: { alert: Alert; now: number }) {
+function AlertRow({ alert, now, onClick }: { alert: Alert; now: number; onClick: () => void }) {
   const meta =
     alert.type === "dark"
       ? { Icon: EyeOff, accent: "var(--danger)", label: "SIGNAL LOSS" }
@@ -13,8 +13,10 @@ function AlertRow({ alert, now }: { alert: Alert; now: number }) {
   const ageMin = Math.max(0, Math.round((now - alert.since) / 60_000));
 
   return (
-    <div
-      className="group relative cursor-pointer border-b border-border/60 bg-surface-1 px-3 py-2.5 transition-colors hover:bg-surface-2"
+    <button
+      type="button"
+      onClick={onClick}
+      className="group relative block w-full cursor-pointer border-b border-border/60 bg-surface-1 px-3 py-2.5 text-left transition-colors hover:bg-surface-2 focus:outline-none focus-visible:bg-surface-2"
       style={{ borderLeft: `2px solid ${accent}` }}
     >
       <div className="flex items-start gap-2">
@@ -55,12 +57,12 @@ function AlertRow({ alert, now }: { alert: Alert; now: number }) {
           </div>
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
 export function AlertFeed() {
-  const { alerts, currentTime } = useTimeline();
+  const { alerts, currentTime, focusVessel } = useTimeline();
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -90,7 +92,9 @@ export function AlertFeed() {
             </p>
           </div>
         ) : (
-          alerts.map((a) => <AlertRow key={a.id} alert={a} now={currentTime} />)
+          alerts.map((a) => (
+            <AlertRow key={a.id} alert={a} now={currentTime} onClick={() => focusVessel(a.mmsi)} />
+          ))
         )}
       </div>
     </div>
