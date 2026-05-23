@@ -62,7 +62,7 @@ function AlertRow({ alert, now, onClick }: { alert: Alert; now: number; onClick:
 }
 
 export function AlertFeed() {
-  const { alerts, currentTime } = useTimeline();
+  const { alerts, currentTime, focusVessel } = useTimeline();
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
