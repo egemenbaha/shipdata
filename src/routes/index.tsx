@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Sidebar } from "@/components/sidebar";
+import { TimelineProvider, useTimeline } from "@/state/timeline";
+import { formatUtc } from "@/lib/derive";
 
 const TacticalMap = lazy(() =>
   import("@/components/tactical-map").then((m) => ({ default: m.TacticalMap })),
@@ -14,7 +16,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Dark-themed maritime cyber situational awareness dashboard. Detect AIS signal loss and spoofing across vessel traffic.",
+          "Dark-themed maritime cyber situational awareness dashboard. Detect AIS signal loss and spoofing across vessel traffic in the Mediterranean.",
       },
     ],
   }),
@@ -22,45 +24,73 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-      <Sidebar />
-      <main className="relative flex-1">
-        <Suspense
-          fallback={
-            <div className="flex h-full w-full items-center justify-center bg-surface-0">
-              <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--cyan)] animate-pulse">
-                Initializing tactical map…
-              </span>
-            </div>
-          }
-        >
-          <TacticalMap />
-        </Suspense>
+    <TimelineProvider>
+      <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+        <Sidebar />
+        <main className="relative flex-1">
+          <MapStage />
+          <HudOverlays />
+        </main>
+      </div>
+    </TimelineProvider>
+  );
+}
 
-        {/* HUD overlays */}
-        <div className="pointer-events-none absolute left-3 top-3 z-[400] rounded-sm border border-border bg-surface-0/80 px-2.5 py-1.5 backdrop-blur-md">
-          <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
-            AOR · Mediterranean
-          </div>
-          <div className="font-mono text-[10px] tabular-nums text-[var(--cyan)]">
-            35.000°N · 018.000°E · Z5
-          </div>
-        </div>
+function MapStage() {
+  // Leaflet touches `window` at import time → only render after client mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-        <div className="pointer-events-none absolute right-3 top-3 z-[400] flex items-center gap-2 rounded-sm border border-border bg-surface-0/80 px-2.5 py-1.5 backdrop-blur-md">
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--cyan)] shadow-[0_0_6px_var(--cyan)]" />
-          <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
-            Tile · CARTO dark_matter
+  if (!mounted) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-surface-0">
+        <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--cyan)] animate-pulse">
+          Initializing tactical map…
+        </span>
+      </div>
+    );
+  }
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-full w-full items-center justify-center bg-surface-0">
+          <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--cyan)] animate-pulse">
+            Loading tiles…
           </span>
         </div>
+      }
+    >
+      <TacticalMap />
+    </Suspense>
+  );
+}
 
-        <div className="pointer-events-none absolute bottom-3 left-3 z-[400] flex gap-2">
-          <Legend swatch="cyan" label="Nominal" />
-          <Legend swatch="amber" label="Course Deviation" />
-          <Legend swatch="danger" label="Dark / Spoofed" />
+function HudOverlays() {
+  const { currentTime, kpis } = useTimeline();
+  return (
+    <>
+      <div className="pointer-events-none absolute left-3 top-3 z-[400] rounded-sm border border-border bg-surface-0/80 px-2.5 py-1.5 backdrop-blur-md">
+        <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+          AOR · Mediterranean
         </div>
-      </main>
-    </div>
+        <div className="font-mono text-[10px] tabular-nums text-[var(--cyan)]">
+          35.000°N · 018.000°E · Z5
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute right-3 top-3 z-[400] flex items-center gap-2 rounded-sm border border-border bg-surface-0/80 px-2.5 py-1.5 backdrop-blur-md">
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--cyan)] shadow-[0_0_6px_var(--cyan)]" />
+        <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+          T {formatUtc(currentTime)} · {kpis.totalVessels} tracks
+        </span>
+      </div>
+
+      <div className="pointer-events-none absolute bottom-3 left-3 z-[400] flex gap-2">
+        <Legend swatch="cyan" label="Nominal" />
+        <Legend swatch="amber" label="Course Deviation" />
+        <Legend swatch="danger" label="Dark / Spoofed" />
+      </div>
+    </>
   );
 }
 
