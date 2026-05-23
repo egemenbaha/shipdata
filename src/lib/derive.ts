@@ -281,6 +281,23 @@ export function computeAlerts(
       });
     }
   }
+  for (const r of rendezvous) {
+    const inCorr =
+      pointInCorridor(r.midpoint.lat, r.midpoint.lng) ||
+      r.a.inCorridor ||
+      r.b.inCorridor;
+    const durMin = (r.lastT - r.since) / 60_000;
+    alerts.push({
+      id: r.id,
+      mmsi: `${r.a.vessel.mmsi}↔${r.b.vessel.mmsi}`,
+      name: `${r.a.vessel.name} ↔ ${r.b.vessel.name}`,
+      flag: `${r.a.vessel.flag}/${r.b.vessel.flag}`,
+      type: "rendezvous",
+      severity: inCorr ? 3 : 2,
+      since: r.since,
+      detail: `Possible STS transfer · ${Math.round(r.minSeparationNm * 1852)} m separation · ${formatMinutes(durMin)} sustained${inCorr ? " · inside smuggling corridor" : ""}`,
+    });
+  }
   // Priority: severity desc, then most-recent first
   alerts.sort((a, b) => b.severity - a.severity || b.since - a.since);
   void currentTime;
