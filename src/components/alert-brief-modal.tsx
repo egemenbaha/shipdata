@@ -61,11 +61,16 @@ function detailLines(a: DbAlert): Array<[string, string]> {
     }
     if (typeof d.delta_deg === "number") out.push(["DELTA", `${Math.round(d.delta_deg)}°`]);
   }
+  if (a.alert_type === "SPOOFING") {
+    const impl = d.implied_speed_kn as number | undefined;
+    if (typeof impl === "number") out.push(["IMPLIED SPEED", `${Math.round(impl)} kn`]);
+    out.push(["ASSESSMENT", "Physically impossible — likely AIS spoofing"]);
+  }
   // Generic passthrough for anything else in details JSONB.
   const known = new Set([
     "minutes_dark", "last_seen", "distance_m", "partner_mmsi", "partner_name",
     "partner_lat", "partner_lng", "mmsi_a", "mmsi_b",
-    "prev_heading", "new_heading", "delta_deg",
+    "prev_heading", "new_heading", "delta_deg", "implied_speed_kn",
   ]);
   for (const [k, v] of Object.entries(d)) {
     if (known.has(k)) continue;
