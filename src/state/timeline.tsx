@@ -17,6 +17,7 @@ import {
   type Rendezvous,
 } from "@/lib/derive";
 import { useAisStream, type LiveShip } from "@/hooks/use-ais-stream";
+import { useAnomalyDetection, type LiveAnomaly } from "@/hooks/use-anomaly-detection";
 
 // Map AISStream ship_type integer to our internal vessel type bucket.
 function liveShipType(code?: number): "tanker" | "cargo" | "fishing" {
@@ -27,17 +28,20 @@ function liveShipType(code?: number): "tanker" | "cargo" | "fishing" {
   return "cargo";
 }
 
-// Build a synthetic DerivedVessel from a live AIS ping. Live ships are always
-// treated as nominal — the historical anomaly engine doesn't apply to a single
-// real-time fix.
-function liveToDerived(s: LiveShip): DerivedVessel {
-  const point = { t: Date.now(), lat: s.lat, lng: s.lng, speed: s.speed };
+// Build a synthetic DerivedVessel from a live AIS ping, applying any live
+// anomaly status (DARK / COURSE_DEV) computed by the detector.
+function liveToDerived(s: LiveShip, anomaly?: LiveAnomaly): DerivedVessel {
+  const point = { t: s.lastUpdate, lat: s.lat, lng: s.lng, speed: s.speed };
+  // Synthesise a "previous" point along the reported course so the marker
+  // can compute a heading arrow even with a single AIS fix.
+  const back = backProject(s.lat, s.lng, s.course, 0.5);
   const prev = {
     t: point.t - 60_000,
-    lat: s.lat,
-    lng: s.lng,
+    lat: back.lat,
+    lng: back.lng,
     speed: s.speed,
   };
+  const status: DerivedVessel["status"] = anomaly?.status ?? "nominal";
   return {
     vessel: {
       mmsi: s.mmsi,
@@ -49,11 +53,19 @@ function liveToDerived(s: LiveShip): DerivedVessel {
     },
     visibleTrack: [prev, point],
     lastPoint: point,
-    status: "nominal",
-    minutesDark: 0,
+    status,
+    minutesDark: anomaly?.minutesDark ?? 0,
     spoofJump: null,
     inCorridor: false,
   };
+}
+
+// Walk ~nm backwards along bearing so the vessel marker has a heading vector.
+function backProject(lat: number, lng: number, bearing: number, nm: number) {
+  const rad = ((bearing + 180) * Math.PI) / 180;
+  const dLat = (Math.cos(rad) * nm) / 60;
+  const dLng = (Math.sin(rad) * nm) / (60 * Math.cos((lat * Math.PI) / 180));
+  return { lat: lat + dLat, lng: lng + dLng };
 }
 
 export type FlyRequest = {
