@@ -14,7 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          heading: number | null
+          id: string
+          lat: number | null
+          lng: number | null
+          message: string | null
+          mmsi: string
+          resolved: boolean
+          risk_score: number
+          vessel_name: string | null
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          heading?: number | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          message?: string | null
+          mmsi: string
+          resolved?: boolean
+          risk_score?: number
+          vessel_name?: string | null
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          heading?: number | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          message?: string | null
+          mmsi?: string
+          resolved?: boolean
+          risk_score?: number
+          vessel_name?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
