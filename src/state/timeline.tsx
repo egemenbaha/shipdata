@@ -99,8 +99,20 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const [theater, setTheaterState] = useState<TheaterView>("med");
   const nonceRef = useRef(0);
 
+  // Live AIS feed (Turkish Straits bounding box).
+  const { ships: liveShips } = useAisStream();
+  const liveDerived = useMemo(() => {
+    const out: DerivedVessel[] = [];
+    liveShips.forEach((s) => out.push(liveToDerived(s)));
+    return out;
+  }, [liveShips]);
+
   // Derive all vessels once; filter per view for display.
-  const allDerived = useMemo(() => deriveAll(allVessels, currentTime), [currentTime]);
+  const mockDerived = useMemo(() => deriveAll(allVessels, currentTime), [currentTime]);
+  const allDerived = useMemo(
+    () => [...mockDerived, ...liveDerived],
+    [mockDerived, liveDerived],
+  );
 
   const theaterDerived = useMemo(() => {
     const out = createTheaterBuckets<DerivedVessel>();
