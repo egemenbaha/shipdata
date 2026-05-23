@@ -16,6 +16,45 @@ import {
   type Kpis,
   type Rendezvous,
 } from "@/lib/derive";
+import { useAisStream, type LiveShip } from "@/hooks/use-ais-stream";
+
+// Map AISStream ship_type integer to our internal vessel type bucket.
+function liveShipType(code?: number): "tanker" | "cargo" | "fishing" {
+  if (!code) return "cargo";
+  if (code >= 80 && code <= 89) return "tanker";
+  if (code === 30) return "fishing";
+  if (code >= 70 && code <= 79) return "cargo";
+  return "cargo";
+}
+
+// Build a synthetic DerivedVessel from a live AIS ping. Live ships are always
+// treated as nominal — the historical anomaly engine doesn't apply to a single
+// real-time fix.
+function liveToDerived(s: LiveShip): DerivedVessel {
+  const point = { t: Date.now(), lat: s.lat, lng: s.lng, speed: s.speed };
+  const prev = {
+    t: point.t - 60_000,
+    lat: s.lat,
+    lng: s.lng,
+    speed: s.speed,
+  };
+  return {
+    vessel: {
+      mmsi: s.mmsi,
+      name: s.name?.trim() || `MMSI ${s.mmsi}`,
+      type: liveShipType(s.shipType),
+      flag: "LIVE",
+      theaterId: "straits",
+      track: [prev, point],
+    },
+    visibleTrack: [prev, point],
+    lastPoint: point,
+    status: "nominal",
+    minutesDark: 0,
+    spoofJump: null,
+    inCorridor: false,
+  };
+}
 
 export type FlyRequest = {
   mmsi: string | null;
@@ -60,8 +99,20 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const [theater, setTheaterState] = useState<TheaterView>("med");
   const nonceRef = useRef(0);
 
+  // Live AIS feed (Turkish Straits bounding box).
+  const { ships: liveShips } = useAisStream();
+  const liveDerived = useMemo(() => {
+    const out: DerivedVessel[] = [];
+    liveShips.forEach((s) => out.push(liveToDerived(s)));
+    return out;
+  }, [liveShips]);
+
   // Derive all vessels once; filter per view for display.
-  const allDerived = useMemo(() => deriveAll(allVessels, currentTime), [currentTime]);
+  const mockDerived = useMemo(() => deriveAll(allVessels, currentTime), [currentTime]);
+  const allDerived = useMemo(
+    () => [...mockDerived, ...liveDerived],
+    [mockDerived, liveDerived],
+  );
 
   const theaterDerived = useMemo(() => {
     const out = createTheaterBuckets<DerivedVessel>();
