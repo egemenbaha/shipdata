@@ -1,6 +1,6 @@
 // All derived state for the dashboard. Pure functions of (vessels, currentTime).
 
-import type { TrackPoint, Vessel } from "@/data/vessels";
+import { THEATERS, type TrackPoint, type Vessel } from "@/data/vessels";
 
 // Great-circle distance in nautical miles.
 export function haversineNm(a: TrackPoint, b: TrackPoint): number {
