@@ -3,7 +3,9 @@ import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import { VesselLayer } from "./vessel-layer";
 import { CorridorLayer } from "./corridor-layer";
 import { RendezvousLayer } from "./rendezvous-layer";
+import { TheaterClusterLayer } from "./theater-cluster-layer";
 import { useTimeline } from "@/state/timeline";
+import { GLOBAL_VIEW } from "@/data/vessels";
 
 function MapReady() {
   const map = useMap();
@@ -19,22 +21,24 @@ function MapFlyController() {
   const { flyRequest } = useTimeline();
   useEffect(() => {
     if (!flyRequest) return;
-    map.flyTo([flyRequest.lat, flyRequest.lng], Math.max(map.getZoom(), 7), {
-      duration: 1.1,
-    });
+    const targetZoom = flyRequest.zoom ?? Math.max(map.getZoom(), 7);
+    map.flyTo([flyRequest.lat, flyRequest.lng], targetZoom, { duration: 1.1 });
   }, [flyRequest, map]);
   return null;
 }
 
-
 export function TacticalMap() {
+  const { theater } = useTimeline();
+  const isGlobal = theater === "global";
+
   return (
     <MapContainer
-      center={[35, 18]}
+      center={GLOBAL_VIEW.center}
       zoom={5}
       zoomControl={true}
       className="h-full w-full"
       attributionControl={true}
+      worldCopyJump
     >
       <TileLayer
         url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
@@ -48,8 +52,14 @@ export function TacticalMap() {
         maxZoom={19}
       />
       <CorridorLayer />
-      <VesselLayer />
-      <RendezvousLayer />
+      {isGlobal ? (
+        <TheaterClusterLayer />
+      ) : (
+        <>
+          <VesselLayer />
+          <RendezvousLayer />
+        </>
+      )}
       <MapReady />
       <MapFlyController />
     </MapContainer>
