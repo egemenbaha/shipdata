@@ -47,6 +47,19 @@ export function RendezvousLayer() {
         const durMin = (Math.min(currentTime, r.lastT) - r.since) / 60_000;
 
         return (
+          <g key={r.id} />
+        );
+      })}
+      {rendezvous.map((r) => {
+        if (!r.a.lastPoint || !r.b.lastPoint) return null;
+        const a: [number, number] = [r.a.lastPoint.lat, r.a.lastPoint.lng];
+        const b: [number, number] = [r.b.lastPoint.lat, r.b.lastPoint.lng];
+        const mid: [number, number] = [r.midpoint.lat, r.midpoint.lng];
+        const durMin = (Math.min(currentTime, r.lastT) - r.since) / 60_000;
+        void a; void b; void mid; void durMin;
+        return null;
+      })}
+      {null && (
           <div key={r.id}>
             {/* Glow underlay */}
             <Polyline
