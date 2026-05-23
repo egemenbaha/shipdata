@@ -15,6 +15,31 @@ function haversineNm(a: TrackPoint, b: TrackPoint): number {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+// Initial bearing from a → b, in degrees (0=N, 90=E).
+export function bearingDeg(a: TrackPoint, b: TrackPoint): number {
+  const φ1 = (a.lat * Math.PI) / 180;
+  const φ2 = (b.lat * Math.PI) / 180;
+  const Δλ = ((b.lng - a.lng) * Math.PI) / 180;
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x =
+    Math.cos(φ1) * Math.sin(φ2) -
+    Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  return (((Math.atan2(y, x) * 180) / Math.PI) + 360) % 360;
+}
+
+// Project a point N nautical miles along bearing.
+export function projectPoint(
+  lat: number,
+  lng: number,
+  bearing: number,
+  nm: number,
+): { lat: number; lng: number } {
+  const rad = (bearing * Math.PI) / 180;
+  const dLat = (Math.cos(rad) * nm) / 60;
+  const dLng = (Math.sin(rad) * nm) / (60 * Math.cos((lat * Math.PI) / 180));
+  return { lat: lat + dLat, lng: lng + dLng };
+}
+
 // A vessel is considered "dark" when its last AIS ping is older than this.
 const DARK_THRESHOLD_MIN = 25;
 
