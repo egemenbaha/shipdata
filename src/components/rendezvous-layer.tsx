@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Marker, Polyline, Tooltip } from "react-leaflet";
 import L from "leaflet";
 import { useTimeline } from "@/state/timeline";
@@ -47,30 +48,11 @@ export function RendezvousLayer() {
         const durMin = (Math.min(currentTime, r.lastT) - r.since) / 60_000;
 
         return (
-          <g key={r.id} />
-        );
-      })}
-      {rendezvous.map((r) => {
-        if (!r.a.lastPoint || !r.b.lastPoint) return null;
-        const a: [number, number] = [r.a.lastPoint.lat, r.a.lastPoint.lng];
-        const b: [number, number] = [r.b.lastPoint.lat, r.b.lastPoint.lng];
-        const mid: [number, number] = [r.midpoint.lat, r.midpoint.lng];
-        const durMin = (Math.min(currentTime, r.lastT) - r.since) / 60_000;
-        void a; void b; void mid; void durMin;
-        return null;
-      })}
-      {null && (
-          <div key={r.id}>
-            {/* Glow underlay */}
+          <Fragment key={r.id}>
             <Polyline
               positions={[a, b]}
-              pathOptions={{
-                color: "var(--amber)",
-                weight: 8,
-                opacity: 0.18,
-              }}
+              pathOptions={{ color: "var(--amber)", weight: 8, opacity: 0.18 }}
             />
-            {/* Link line */}
             <Polyline
               positions={[a, b]}
               pathOptions={{
@@ -88,12 +70,7 @@ export function RendezvousLayer() {
                 className="vessel-tooltip"
               >
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
-                  <div
-                    style={{
-                      color: "var(--amber)",
-                      letterSpacing: ".12em",
-                    }}
-                  >
+                  <div style={{ color: "var(--amber)", letterSpacing: ".12em" }}>
                     POSSIBLE STS TRANSFER
                   </div>
                   <div style={{ color: "var(--muted-foreground)" }}>
@@ -106,7 +83,7 @@ export function RendezvousLayer() {
                 </div>
               </Tooltip>
             </Marker>
-          </div>
+          </Fragment>
         );
       })}
     </>
