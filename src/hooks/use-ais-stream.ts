@@ -69,13 +69,14 @@ export function useAisStream(): {
 
     const connect = () => {
       setStatus("connecting");
-      ws = new WebSocket(STREAM_URL);
+      ws = new WebSocket(proxyUrl);
 
       ws.onopen = () => {
         setStatus("open");
+        // Tell the proxy which bounding box / message types we want. The proxy
+        // injects the API key server-side before forwarding to AISStream.
         ws?.send(
           JSON.stringify({
-            APIKey: apiKey,
             BoundingBoxes: BBOX,
             FilterMessageTypes: ["PositionReport", "ShipStaticData"],
           }),
