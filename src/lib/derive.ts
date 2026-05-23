@@ -40,12 +40,42 @@ export function projectPoint(
   return { lat: lat + dLat, lng: lng + dLng };
 }
 
-// A vessel is considered "dark" when its last AIS ping is older than this.
+// A vessel is considered "dark" when its last AIS ping is older than this
+// (relative to the current timeline value).
 const DARK_THRESHOLD_MIN = 25;
 
-// Implied speed above this between two consecutive pings is physically
-// impossible for surface vessels — flag as spoofing.
-const IMPOSSIBLE_KTS = 60;
+// Physical max speed per vessel type, in knots. Any implied speed between
+// two consecutive AIS pings above this is treated as spoofing.
+const MAX_KTS_BY_TYPE: Record<Vessel["type"], number> = {
+  tanker: 40,
+  cargo: 45,
+  fishing: 30,
+};
+
+// Known smuggling corridor (Eastern Mediterranean, south of Crete toward the
+// Libyan coast). Polygon as [lat, lng] vertices, closed implicitly.
+export const SMUGGLING_CORRIDOR: ReadonlyArray<[number, number]> = [
+  [34.6, 20.2],
+  [34.9, 24.8],
+  [33.2, 25.4],
+  [32.4, 22.6],
+  [32.8, 20.0],
+];
+
+// Point-in-polygon (ray casting) for [lat,lng] poly.
+export function pointInCorridor(lat: number, lng: number): boolean {
+  let inside = false;
+  const poly = SMUGGLING_CORRIDOR;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [yi, xi] = poly[i];
+    const [yj, xj] = poly[j];
+    const intersect =
+      yi > lat !== yj > lat &&
+      lng < ((xj - xi) * (lat - yi)) / (yj - yi + 1e-12) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
 
 export type VesselStatus = "nominal" | "dark" | "spoofing";
 
@@ -62,7 +92,8 @@ export function deriveVessel(vessel: Vessel, currentTime: number): DerivedVessel
   const visibleTrack = vessel.track.filter((p) => p.t <= currentTime);
   const lastPoint = visibleTrack.at(-1) ?? null;
 
-  // Spoofing: scan visible pairs for impossible implied speed
+  // Spoofing: implied speed above the type-specific physical maximum.
+  const maxKts = MAX_KTS_BY_TYPE[vessel.type];
   let spoofJump: DerivedVessel["spoofJump"] = null;
   for (let i = 1; i < visibleTrack.length; i++) {
     const a = visibleTrack[i - 1];
@@ -70,7 +101,7 @@ export function deriveVessel(vessel: Vessel, currentTime: number): DerivedVessel
     const hours = (b.t - a.t) / 3_600_000;
     if (hours <= 0) continue;
     const kts = haversineNm(a, b) / hours;
-    if (kts > IMPOSSIBLE_KTS) {
+    if (kts > maxKts) {
       spoofJump = { from: a, to: b, impliedKts: kts };
       break;
     }
