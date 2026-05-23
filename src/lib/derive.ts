@@ -52,20 +52,18 @@ export const MAX_KTS_BY_TYPE: Record<Vessel["type"], number> = {
   fishing: 30,
 };
 
-// Known smuggling corridor (Eastern Mediterranean, south of Crete toward the
-// Libyan coast). Polygon as [lat, lng] vertices, closed implicitly.
-export const SMUGGLING_CORRIDOR: ReadonlyArray<[number, number]> = [
-  [34.6, 20.2],
-  [34.9, 24.8],
-  [33.2, 25.4],
-  [32.4, 22.6],
-  [32.8, 20.0],
-];
+// Known smuggling/transit corridor for the Mediterranean theater. Kept as a
+// named export for back-compat; the runtime check below considers ALL theaters.
+export const SMUGGLING_CORRIDOR: ReadonlyArray<[number, number]> =
+  THEATERS.find((t) => t.id === "med")!.corridor;
 
-// Point-in-polygon (ray casting) for [lat,lng] poly.
-export function pointInCorridor(lat: number, lng: number): boolean {
+// Point-in-polygon (ray casting) for a [lat,lng] polygon.
+function pointInPolygon(
+  lat: number,
+  lng: number,
+  poly: ReadonlyArray<[number, number]>,
+): boolean {
   let inside = false;
-  const poly = SMUGGLING_CORRIDOR;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
     const [yi, xi] = poly[i];
     const [yj, xj] = poly[j];
@@ -75,6 +73,11 @@ export function pointInCorridor(lat: number, lng: number): boolean {
     if (intersect) inside = !inside;
   }
   return inside;
+}
+
+// True if the point falls inside ANY theater's corridor. One engine, any waters.
+export function pointInCorridor(lat: number, lng: number): boolean {
+  return THEATERS.some((t) => pointInPolygon(lat, lng, t.corridor));
 }
 
 export type VesselStatus = "nominal" | "dark" | "spoofing";
