@@ -124,14 +124,34 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const [theater, setTheaterState] = useState<TheaterView>("med");
   const nonceRef = useRef(0);
 
-  // Live AIS feed (Turkish Straits bounding box) + live anomaly detection.
-  const { ships: liveShips } = useAisStream();
-  const anomalies = useAnomalyDetection(liveShips);
+  // Keep the WebSocket proxy connection alive — it triggers the Edge Function
+  // which writes UPSERTs into the vessels table. We ignore the relayed
+  // messages; the DB subscription below is the source of truth.
+  useAisStream();
+
+  // Database-driven live vessels (realtime subscription).
+  const { vessels: dbVessels } = useVessels();
+
+  // Adapt to LiveShip shape for the anomaly detector (which already knows
+  // how to compute DARK / COURSE_DEV from this).
+  const liveShipsForDetection = useMemo(() => {
+    const m = new Map<string, LiveShip>();
+    dbVessels.forEach((v) => {
+      const ls = vesselToLiveShip(v);
+      if (ls) m.set(ls.mmsi, ls);
+    });
+    return m;
+  }, [dbVessels]);
+  const anomalies = useAnomalyDetection(liveShipsForDetection);
+
   const liveDerived = useMemo(() => {
     const out: DerivedVessel[] = [];
-    liveShips.forEach((s) => out.push(liveToDerived(s, anomalies.get(s.mmsi))));
+    dbVessels.forEach((v) => {
+      const d = vesselToDerived(v, anomalies.get(v.mmsi));
+      if (d) out.push(d);
+    });
     return out;
-  }, [liveShips, anomalies]);
+  }, [dbVessels, anomalies]);
 
   // Derive all vessels once; filter per view for display.
   const mockDerived = useMemo(() => deriveAll(allVessels, currentTime), [currentTime]);
