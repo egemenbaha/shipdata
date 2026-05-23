@@ -6,6 +6,8 @@ import { TimelineProvider, useTimeline } from "@/state/timeline";
 import { formatUtc } from "@/lib/derive";
 import { TimelineSlider } from "@/components/timeline-slider";
 import { VesselDetailPanel } from "@/components/vessel-detail-panel";
+import { TheaterSwitcher } from "@/components/theater-switcher";
+import { THEATERS, GLOBAL_VIEW } from "@/data/vessels";
 
 const TacticalMap = lazy(() =>
   import("@/components/tactical-map").then((m) => ({ default: m.TacticalMap })),
@@ -19,7 +21,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Dark-themed maritime cyber situational awareness dashboard. Detect AIS signal loss and spoofing across vessel traffic in the Mediterranean.",
+          "Multi-theater maritime cyber situational awareness — Mediterranean, Black Sea, and Strait of Hormuz. Detect AIS signal loss, spoofing, and STS transfers from one engine.",
       },
     ],
   }),
@@ -32,6 +34,7 @@ function Dashboard() {
         <Sidebar />
         <main className="relative flex-1">
           <MapStage />
+          <TheaterSwitcher />
           <HudOverlays />
           <VesselDetailPanel />
           <TimelineSlider />
@@ -40,6 +43,7 @@ function Dashboard() {
     </TimelineProvider>
   );
 }
+
 
 function MapStage() {
   // Leaflet touches `window` at import time → only render after client mount.
