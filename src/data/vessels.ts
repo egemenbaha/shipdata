@@ -1,34 +1,52 @@
-// Single source of truth for the entire app.
-// All vessels, tracks, anomalies, KPIs, and alert feed entries are derived
-// from this dataset combined with the current timeline value.
+// Single source of truth: theaters, each with their own vessels, tracks, and
+// smuggling-corridor polygon. The detection engine in `lib/derive.ts` is
+// theater-agnostic — same physics, same anomaly rules, any waters.
 
 export type VesselType = "tanker" | "cargo" | "fishing";
 
 export type TrackPoint = {
-  t: number; // epoch ms (UTC)
+  t: number;
   lat: number;
   lng: number;
-  speed: number; // knots
+  speed: number;
 };
 
 export type Vessel = {
   mmsi: string;
   name: string;
   type: VesselType;
-  flag: string; // ISO 3166-1 alpha-2
+  flag: string;
+  theaterId: TheaterId;
   track: TrackPoint[];
 };
 
-// Scenario clock: 23 May 2026, 12:00–16:00 UTC over the Mediterranean.
+export type TheaterId = "med" | "black" | "hormuz";
+
+export type Theater = {
+  id: TheaterId;
+  name: string;
+  shortName: string;
+  blurb: string;
+  center: [number, number];
+  zoom: number;
+  corridor: ReadonlyArray<[number, number]>;
+  corridorLabel: string;
+};
+
+// Scenario clock: 23 May 2026, 12:00–16:00 UTC.
 export const SCENARIO_DATE = "2026-05-23";
 export const TIMELINE_START = Date.UTC(2026, 4, 23, 12, 0, 0);
 export const TIMELINE_END = Date.UTC(2026, 4, 23, 16, 0, 0);
-const STEP_MS = 15 * 60 * 1000; // 15-minute pings
+const STEP_MS = 15 * 60 * 1000;
 
-// ---- helpers (used once to construct the constant dataset) -----------------
+// Global / world view config
+export const GLOBAL_VIEW = {
+  center: [32, 35] as [number, number],
+  zoom: 3,
+};
 
-// Approx conversion: 1° latitude ≈ 60 nm.
-// Course bearing in degrees (0 = north, 90 = east).
+// ---- helpers --------------------------------------------------------------
+
 function step(lat: number, lng: number, bearingDeg: number, nm: number) {
   const rad = (bearingDeg * Math.PI) / 180;
   const dLat = (Math.cos(rad) * nm) / 60;
@@ -41,7 +59,7 @@ function makeTrack(
   startLng: number,
   bearingDeg: number,
   speedKts: number,
-  stops: number = 17, // 17 points = 12:00..16:00 inclusive at 15 min
+  stops: number = 17,
 ): TrackPoint[] {
   const pts: TrackPoint[] = [];
   let lat = startLat;
@@ -51,9 +69,9 @@ function makeTrack(
       t: TIMELINE_START + i * STEP_MS,
       lat,
       lng,
-      speed: speedKts + (Math.sin(i * 1.3) * 0.4), // micro variation
+      speed: speedKts + Math.sin(i * 1.3) * 0.4,
     });
-    const nm = speedKts * 0.25; // 15 min = 0.25 h
+    const nm = speedKts * 0.25;
     const next = step(lat, lng, bearingDeg, nm);
     lat = next.lat;
     lng = next.lng;
@@ -61,12 +79,10 @@ function makeTrack(
   return pts;
 }
 
-// Truncate a track at a given timestamp (vessel goes dark).
 function darken(track: TrackPoint[], blackoutAt: number): TrackPoint[] {
   return track.filter((p) => p.t <= blackoutAt);
 }
 
-// Inject a single physically-impossible jump at the given index.
 function spoof(
   track: TrackPoint[],
   atIndex: number,
@@ -78,17 +94,14 @@ function spoof(
   );
 }
 
-// Replace a contiguous slice of pings with a "drift in place" segment near
-// (lat,lng) at very low speed, with a small offset for the partner vessel.
 function rendezvousSegment(
   track: TrackPoint[],
   fromIndex: number,
   toIndex: number,
   lat: number,
   lng: number,
-  offsetNm = 0.15, // ~280 m
+  offsetNm = 0.15,
 ): TrackPoint[] {
-  // offsetNm to the east-ish for the partner
   const dLat = 0;
   const dLng = offsetNm / (60 * Math.cos((lat * Math.PI) / 180));
   return track.map((p, i) => {
@@ -98,21 +111,77 @@ function rendezvousSegment(
       t: p.t,
       lat: lat + dLat + jitter,
       lng: lng + dLng + jitter,
-      speed: 0.6 + ((i % 3) * 0.2),
+      speed: 0.6 + (i % 3) * 0.2,
     };
   });
 }
 
-// ---- dataset --------------------------------------------------------------
+// Bind theaterId onto a partial vessel definition.
+function withTheater(theaterId: TheaterId, list: Omit<Vessel, "theaterId">[]): Vessel[] {
+  return list.map((v) => ({ ...v, theaterId }));
+}
 
-export const vessels: Vessel[] = [
-  // --- 2 DARK vessels (signal stops mid-window) ---
+// ---- theater configs ------------------------------------------------------
+
+export const THEATERS: Theater[] = [
+  {
+    id: "med",
+    name: "Mediterranean",
+    shortName: "Med",
+    blurb: "Eastern Med · Libya–Crete smuggling corridor",
+    center: [35, 18],
+    zoom: 5,
+    corridorLabel: "Known Smuggling Corridor",
+    corridor: [
+      [34.6, 20.2],
+      [34.9, 24.8],
+      [33.2, 25.4],
+      [32.4, 22.6],
+      [32.8, 20.0],
+    ],
+  },
+  {
+    id: "black",
+    name: "Black Sea",
+    shortName: "Black Sea",
+    blurb: "Russian shadow-fleet tanker activity · AIS spoofing",
+    center: [44.0, 34.5],
+    zoom: 6,
+    corridorLabel: "Shadow-Fleet Transit Lane",
+    corridor: [
+      [45.3, 32.6],
+      [45.2, 36.4],
+      [43.6, 36.6],
+      [43.4, 33.0],
+      [44.2, 32.2],
+    ],
+  },
+  {
+    id: "hormuz",
+    name: "Strait of Hormuz",
+    shortName: "Hormuz",
+    blurb: "Sanctions-evasion STS transfers · Iranian-origin crude",
+    center: [26.3, 56.4],
+    zoom: 7,
+    corridorLabel: "Sanctions-Evasion STS Zone",
+    corridor: [
+      [26.9, 55.4],
+      [26.9, 57.0],
+      [25.6, 57.4],
+      [25.4, 56.0],
+      [26.1, 55.2],
+    ],
+  },
+];
+
+// ---- Mediterranean dataset ------------------------------------------------
+
+const medVessels = withTheater("med", [
   {
     mmsi: "271045892",
     name: "KARADENIZ STAR",
     type: "tanker",
     flag: "TR",
-    // Goes dark at 14:00 UTC
     track: darken(makeTrack(36.2, 28.4, 250, 12.5), TIMELINE_START + 8 * STEP_MS),
   },
   {
@@ -120,17 +189,13 @@ export const vessels: Vessel[] = [
     name: "AGIOS NIKOLAOS",
     type: "cargo",
     flag: "GR",
-    // Goes dark at 13:30 UTC
     track: darken(makeTrack(35.6, 23.1, 110, 14.2), TIMELINE_START + 6 * STEP_MS),
   },
-
-  // --- 2 SPOOFING vessels (single impossible jump) ---
   {
     mmsi: "215772341",
     name: "VALLETTA PRIDE",
     type: "tanker",
     flag: "MT",
-    // ~2° latitude (~120 nm) jump in 15 min → ~480 kts. Impossible.
     track: spoof(makeTrack(34.2, 15.6, 90, 11.8), 9, 2.1, 1.4),
   },
   {
@@ -138,104 +203,127 @@ export const vessels: Vessel[] = [
     name: "STELLA ADRIATICA",
     type: "cargo",
     flag: "IT",
-    // Jump south-west at index 11
     track: spoof(makeTrack(37.4, 13.2, 200, 13.5), 11, -1.8, -1.6),
   },
-
-  // --- 9 NORMAL vessels ---
-  {
-    mmsi: "271083450",
-    name: "ANATOLIA EXPRESS",
-    type: "cargo",
-    flag: "TR",
-    track: makeTrack(36.8, 30.5, 230, 15.1),
-  },
-  {
-    mmsi: "237554120",
-    name: "POSEIDON IX",
-    type: "fishing",
-    flag: "GR",
-    track: makeTrack(37.9, 24.8, 70, 8.4),
-  },
-  {
-    mmsi: "215448021",
-    name: "MEDITERRANEA",
-    type: "tanker",
-    flag: "MT",
-    track: makeTrack(35.1, 18.9, 285, 12.0),
-  },
-  {
-    mmsi: "247602115",
-    name: "GENOVA SPIRIT",
-    type: "cargo",
-    flag: "IT",
-    track: makeTrack(40.1, 12.8, 175, 14.6),
-  },
-  {
-    mmsi: "224015770",
-    name: "IBERIAN DAWN",
-    type: "tanker",
-    flag: "ES",
-    track: makeTrack(36.2, 0.8, 95, 13.2),
-  },
-  {
-    mmsi: "226331004",
-    name: "MARSEILLE BLEU",
-    type: "cargo",
-    flag: "FR",
-    track: makeTrack(42.6, 6.4, 160, 16.3),
-  },
-  {
-    mmsi: "271202118",
-    name: "EGE YILDIZI",
-    type: "fishing",
-    flag: "TR",
-    track: makeTrack(38.2, 26.6, 200, 7.1),
-  },
-  {
-    mmsi: "237890667",
-    name: "KRITI WAVE",
-    type: "fishing",
-    flag: "GR",
-    track: makeTrack(34.9, 25.3, 20, 6.8),
-  },
-  {
-    mmsi: "247440812",
-    name: "SICILIA NORD",
-    type: "cargo",
-    flag: "IT",
-    track: makeTrack(38.0, 14.5, 80, 12.9),
-  },
-
-  // --- 2 RENDEZVOUS vessels (possible STS transfer near smuggling corridor) ---
+  { mmsi: "271083450", name: "ANATOLIA EXPRESS", type: "cargo",   flag: "TR", track: makeTrack(36.8, 30.5, 230, 15.1) },
+  { mmsi: "237554120", name: "POSEIDON IX",      type: "fishing", flag: "GR", track: makeTrack(37.9, 24.8,  70,  8.4) },
+  { mmsi: "215448021", name: "MEDITERRANEA",     type: "tanker",  flag: "MT", track: makeTrack(35.1, 18.9, 285, 12.0) },
+  { mmsi: "247602115", name: "GENOVA SPIRIT",    type: "cargo",   flag: "IT", track: makeTrack(40.1, 12.8, 175, 14.6) },
+  { mmsi: "224015770", name: "IBERIAN DAWN",     type: "tanker",  flag: "ES", track: makeTrack(36.2,  0.8,  95, 13.2) },
+  { mmsi: "226331004", name: "MARSEILLE BLEU",   type: "cargo",   flag: "FR", track: makeTrack(42.6,  6.4, 160, 16.3) },
+  { mmsi: "271202118", name: "EGE YILDIZI",      type: "fishing", flag: "TR", track: makeTrack(38.2, 26.6, 200,  7.1) },
+  { mmsi: "237890667", name: "KRITI WAVE",       type: "fishing", flag: "GR", track: makeTrack(34.9, 25.3,  20,  6.8) },
+  { mmsi: "247440812", name: "SICILIA NORD",     type: "cargo",   flag: "IT", track: makeTrack(38.0, 14.5,  80, 12.9) },
   {
     mmsi: "271604233",
     name: "ZEYTUN HORIZON",
     type: "tanker",
     flag: "TR",
-    // Approach from SW, then drift at (33.70, 22.80) from 13:00 onward.
-    track: rendezvousSegment(
-      makeTrack(33.60, 22.70, 30, 5.0),
-      4,
-      16,
-      33.70,
-      22.80,
-      0,
-    ),
+    track: rendezvousSegment(makeTrack(33.60, 22.70, 30, 5.0), 4, 16, 33.70, 22.80, 0),
   },
   {
     mmsi: "215889017",
     name: "NEPHELE M",
     type: "cargo",
     flag: "MT",
-    // Approach from NE, then drift ~280 m east of ZEYTUN HORIZON.
-    track: rendezvousSegment(
-      makeTrack(33.80, 22.90, 210, 5.0),
-      4,
-      16,
-      33.70,
-      22.80,
-      0.15,
-    ),
+    track: rendezvousSegment(makeTrack(33.80, 22.90, 210, 5.0), 4, 16, 33.70, 22.80, 0.15),
   },
+]);
+
+// ---- Black Sea dataset ----------------------------------------------------
+// Russian shadow-fleet scenario: 2 spoofing tankers (RU), 2 dark, 4 normal.
+
+const blackVessels = withTheater("black", [
+  {
+    mmsi: "273456001",
+    name: "VOLGA PRIMORYE",
+    type: "tanker",
+    flag: "RU",
+    // Massive AIS jump from off Sevastopol to off Novorossiysk
+    track: spoof(makeTrack(44.4, 33.2, 80, 11.5), 8, 0.3, 2.4),
+  },
+  {
+    mmsi: "273912004",
+    name: "NEVA OBSKAYA",
+    type: "tanker",
+    flag: "RU",
+    // Spoof: teleport south of Kerch
+    track: spoof(makeTrack(45.0, 36.1, 200, 10.8), 10, -1.4, -1.7),
+  },
+  {
+    mmsi: "273100847",
+    name: "AZOV PIONEER",
+    type: "tanker",
+    flag: "RU",
+    // Dark at 13:15 — vanishes in the transit lane
+    track: darken(makeTrack(44.6, 35.2, 240, 9.8), TIMELINE_START + 5 * STEP_MS),
+  },
+  {
+    mmsi: "271709332",
+    name: "BOSPHORUS KARTAL",
+    type: "cargo",
+    flag: "TR",
+    // Dark at 14:00
+    track: darken(makeTrack(43.2, 31.6, 60, 12.3), TIMELINE_START + 8 * STEP_MS),
+  },
+  { mmsi: "273004511", name: "DON STELLAR",      type: "cargo",   flag: "RU", track: makeTrack(45.1, 36.8, 210, 13.4) },
+  { mmsi: "271811220", name: "KARADENIZ FENER",  type: "tanker",  flag: "TR", track: makeTrack(43.0, 31.2,  90, 11.7) },
+  { mmsi: "207443100", name: "VARNA AURORA",     type: "cargo",   flag: "BG", track: makeTrack(43.4, 30.0, 130, 14.0) },
+  { mmsi: "264887721", name: "CONSTANTA SOARE",  type: "fishing", flag: "RO", track: makeTrack(44.2, 30.4, 100,  7.6) },
+]);
+
+// ---- Strait of Hormuz dataset ---------------------------------------------
+// Sanctions-evasion STS scenario: rendezvous pair in the corridor, plus a
+// spoofing and a dark case, plus normals.
+
+const hormuzVessels = withTheater("hormuz", [
+  // STS pair inside the corridor (~26.3N 56.3E)
+  {
+    mmsi: "422991008",
+    name: "SHAHID BAHRAM",
+    type: "tanker",
+    flag: "IR",
+    track: rendezvousSegment(makeTrack(26.10, 56.10, 40, 5.5), 4, 16, 26.32, 56.35, 0),
+  },
+  {
+    mmsi: "352001147",
+    name: "OCEAN PEARL VII",
+    type: "tanker",
+    flag: "PA", // Panama flag-of-convenience
+    track: rendezvousSegment(makeTrack(26.50, 56.60, 220, 5.5), 4, 16, 26.32, 56.35, 0.16),
+  },
+  {
+    mmsi: "470117044",
+    name: "AL MARWAH",
+    type: "tanker",
+    flag: "AE",
+    // Spoof: implausible 1.6° jump in 15 min
+    track: spoof(makeTrack(25.7, 57.2, 290, 12.6), 9, 1.4, -1.6),
+  },
+  {
+    mmsi: "422118207",
+    name: "PERSIAN MEHR",
+    type: "cargo",
+    flag: "IR",
+    // Dark at 13:45 inside the corridor
+    track: darken(makeTrack(26.6, 55.9, 110, 11.0), TIMELINE_START + 7 * STEP_MS),
+  },
+  { mmsi: "563122889", name: "STAR OF SINGAPORE", type: "cargo",  flag: "SG", track: makeTrack(25.2, 57.8, 290, 15.2) },
+  { mmsi: "470008011", name: "DUBAI MERIDIAN",    type: "tanker", flag: "AE", track: makeTrack(25.4, 56.4, 110, 12.8) },
+  { mmsi: "457302118", name: "MUSCAT WIND",       type: "cargo",  flag: "OM", track: makeTrack(24.8, 58.1, 320, 13.6) },
+  { mmsi: "403555401", name: "JAZIRA CRESCENT",   type: "fishing", flag: "SA", track: makeTrack(26.9, 55.4, 150, 7.2) },
+]);
+
+// ---- exports --------------------------------------------------------------
+
+export const THEATER_VESSELS: Record<TheaterId, Vessel[]> = {
+  med: medVessels,
+  black: blackVessels,
+  hormuz: hormuzVessels,
+};
+
+export const vessels: Vessel[] = [
+  ...medVessels,
+  ...blackVessels,
+  ...hormuzVessels,
 ];
