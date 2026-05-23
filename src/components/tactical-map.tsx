@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import { VesselLayer } from "./vessel-layer";
+import { CorridorLayer } from "./corridor-layer";
 
 function MapReady() {
   const map = useMap();
@@ -31,6 +32,7 @@ export function TacticalMap() {
         subdomains="abcd"
         maxZoom={19}
       />
+      <CorridorLayer />
       <VesselLayer />
       <MapReady />
     </MapContainer>
