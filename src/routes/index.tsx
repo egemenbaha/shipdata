@@ -75,20 +75,28 @@ function MapStage() {
 }
 
 function HudOverlays() {
-  const { currentTime, kpis, alerts } = useTimeline();
+  const { currentTime, kpis, alerts, theater } = useTimeline();
   const counts = {
     dark: alerts.filter((a) => a.type === "dark").length,
     spoofing: alerts.filter((a) => a.type === "spoofing").length,
     rendezvous: alerts.filter((a) => a.type === "rendezvous").length,
   };
+  const cfg =
+    theater === "global"
+      ? { name: "Global", center: GLOBAL_VIEW.center, zoom: GLOBAL_VIEW.zoom }
+      : (() => {
+          const t = THEATERS.find((x) => x.id === theater)!;
+          return { name: t.name, center: t.center, zoom: t.zoom };
+        })();
+
   return (
     <>
       <div className="pointer-events-none absolute left-3 top-3 z-[400] rounded-sm border border-border bg-surface-0/80 px-2.5 py-1.5 backdrop-blur-md">
         <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
-          AOR · Mediterranean
+          AOR · {cfg.name}
         </div>
         <div className="font-mono text-[10px] tabular-nums text-[var(--cyan)]">
-          35.000°N · 018.000°E · Z5
+          {cfg.center[0].toFixed(3)}°N · {cfg.center[1].toFixed(3)}°E · Z{cfg.zoom}
         </div>
       </div>
 
@@ -99,7 +107,7 @@ function HudOverlays() {
         </span>
       </div>
 
-      <div className="pointer-events-none absolute left-1/2 top-3 z-[400] flex -translate-x-1/2 items-center gap-0 overflow-hidden rounded-sm border border-border bg-surface-0/85 backdrop-blur-md">
+      <div className="pointer-events-none absolute left-1/2 top-12 z-[400] flex -translate-x-1/2 items-center gap-0 overflow-hidden rounded-sm border border-border bg-surface-0/85 backdrop-blur-md">
         <CountChip icon={EyeOff} label="DARK" value={counts.dark} accent="var(--danger)" />
         <span className="h-4 w-px bg-border" />
         <CountChip icon={Radio} label="SPOOF" value={counts.spoofing} accent="var(--danger)" />
@@ -121,6 +129,7 @@ function HudOverlays() {
     </>
   );
 }
+
 
 function CountChip({
   icon: Icon,
