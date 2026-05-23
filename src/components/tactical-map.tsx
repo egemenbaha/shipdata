@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import { VesselLayer } from "./vessel-layer";
 import { CorridorLayer } from "./corridor-layer";
+import { RendezvousLayer } from "./rendezvous-layer";
 
 function MapReady() {
   const map = useMap();
@@ -34,6 +35,7 @@ export function TacticalMap() {
       />
       <CorridorLayer />
       <VesselLayer />
+      <RendezvousLayer />
       <MapReady />
     </MapContainer>
   );
