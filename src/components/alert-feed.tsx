@@ -50,6 +50,9 @@ function typeDetail(a: FeedAlert): string | null {
   if (a.type === "course_dev" && typeof d.delta_deg === "number") {
     return `ΔHDG ${Math.round(d.delta_deg)}°`;
   }
+  if (a.type === "spoofing" && typeof d.implied_speed_kn === "number") {
+    return `Implied ${Math.round(d.implied_speed_kn)} kn (impossible)`;
+  }
   return null;
 }
 
