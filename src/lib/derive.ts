@@ -80,7 +80,7 @@ export function pointInCorridor(lat: number, lng: number): boolean {
   return THEATERS.some((t) => pointInPolygon(lat, lng, t.corridor));
 }
 
-export type VesselStatus = "nominal" | "dark" | "spoofing";
+export type VesselStatus = "nominal" | "dark" | "spoofing" | "course_dev";
 
 export type DerivedVessel = {
   vessel: Vessel;
@@ -246,7 +246,7 @@ export type Alert = {
   mmsi: string;
   name: string;
   flag: string;
-  type: "dark" | "spoofing" | "rendezvous";
+  type: "dark" | "spoofing" | "rendezvous" | "course_dev";
   severity: 1 | 2 | 3;
   since: number;
   detail: string;
@@ -270,6 +270,17 @@ export function computeAlerts(
         severity: d.inCorridor ? 3 : baseSev,
         since: d.lastPoint.t,
         detail: `Last AIS ping ${formatMinutes(d.minutesDark)} ago${d.inCorridor ? " · inside smuggling corridor" : ""}`,
+      });
+    } else if (d.status === "course_dev" && d.lastPoint) {
+      alerts.push({
+        id: `${d.vessel.mmsi}-coursedev`,
+        mmsi: d.vessel.mmsi,
+        name: d.vessel.name,
+        flag: d.vessel.flag,
+        type: "course_dev",
+        severity: 2,
+        since: d.lastPoint.t,
+        detail: `Sudden course deviation > 45°`,
       });
     } else if (d.status === "spoofing" && d.spoofJump) {
       alerts.push({
