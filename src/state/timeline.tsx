@@ -3,16 +3,19 @@ import { vessels, TIMELINE_END } from "@/data/vessels";
 import {
   computeAlerts,
   computeKpis,
+  computeRendezvous,
   deriveAll,
   type Alert,
   type DerivedVessel,
   type Kpis,
+  type Rendezvous,
 } from "@/lib/derive";
 
 type TimelineContextValue = {
   currentTime: number;
   setCurrentTime: (t: number) => void;
   derived: DerivedVessel[];
+  rendezvous: Rendezvous[];
   kpis: Kpis;
   alerts: Alert[];
 };
@@ -20,17 +23,18 @@ type TimelineContextValue = {
 const TimelineContext = createContext<TimelineContextValue | null>(null);
 
 export function TimelineProvider({ children }: { children: ReactNode }) {
-  // Default to the end of the scenario window so all anomalies are visible.
   const [currentTime, setCurrentTime] = useState<number>(TIMELINE_END);
 
   const value = useMemo<TimelineContextValue>(() => {
     const derived = deriveAll(vessels, currentTime);
+    const rendezvous = computeRendezvous(derived);
     return {
       currentTime,
       setCurrentTime,
       derived,
-      kpis: computeKpis(derived),
-      alerts: computeAlerts(derived, currentTime),
+      rendezvous,
+      kpis: computeKpis(derived, rendezvous),
+      alerts: computeAlerts(derived, currentTime, rendezvous),
     };
   }, [currentTime]);
 

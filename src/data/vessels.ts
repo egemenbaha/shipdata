@@ -78,6 +78,31 @@ function spoof(
   );
 }
 
+// Replace a contiguous slice of pings with a "drift in place" segment near
+// (lat,lng) at very low speed, with a small offset for the partner vessel.
+function rendezvousSegment(
+  track: TrackPoint[],
+  fromIndex: number,
+  toIndex: number,
+  lat: number,
+  lng: number,
+  offsetNm = 0.15, // ~280 m
+): TrackPoint[] {
+  // offsetNm to the east-ish for the partner
+  const dLat = 0;
+  const dLng = offsetNm / (60 * Math.cos((lat * Math.PI) / 180));
+  return track.map((p, i) => {
+    if (i < fromIndex || i > toIndex) return p;
+    const jitter = ((i % 2) - 0.5) * 0.0015;
+    return {
+      t: p.t,
+      lat: lat + dLat + jitter,
+      lng: lng + dLng + jitter,
+      speed: 0.6 + ((i % 3) * 0.2),
+    };
+  });
+}
+
 // ---- dataset --------------------------------------------------------------
 
 export const vessels: Vessel[] = [
@@ -180,5 +205,37 @@ export const vessels: Vessel[] = [
     type: "cargo",
     flag: "IT",
     track: makeTrack(38.0, 14.5, 80, 12.9),
+  },
+
+  // --- 2 RENDEZVOUS vessels (possible STS transfer near smuggling corridor) ---
+  {
+    mmsi: "271604233",
+    name: "ZEYTUN HORIZON",
+    type: "tanker",
+    flag: "TR",
+    // Approach from SW, then drift at (33.70, 22.80) from 13:00 onward.
+    track: rendezvousSegment(
+      makeTrack(33.60, 22.70, 30, 5.0),
+      4,
+      16,
+      33.70,
+      22.80,
+      0,
+    ),
+  },
+  {
+    mmsi: "215889017",
+    name: "NEPHELE M",
+    type: "cargo",
+    flag: "MT",
+    // Approach from NE, then drift ~280 m east of ZEYTUN HORIZON.
+    track: rendezvousSegment(
+      makeTrack(33.80, 22.90, 210, 5.0),
+      4,
+      16,
+      33.70,
+      22.80,
+      0.15,
+    ),
   },
 ];
