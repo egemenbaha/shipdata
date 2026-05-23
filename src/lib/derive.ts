@@ -80,7 +80,7 @@ export function pointInCorridor(lat: number, lng: number): boolean {
   return THEATERS.some((t) => pointInPolygon(lat, lng, t.corridor));
 }
 
-export type VesselStatus = "nominal" | "dark" | "spoofing";
+export type VesselStatus = "nominal" | "dark" | "spoofing" | "course_dev";
 
 export type DerivedVessel = {
   vessel: Vessel;
