@@ -1,12 +1,15 @@
-import { EyeOff, Radio, Inbox } from "lucide-react";
+import { EyeOff, Radio, Inbox, ArrowLeftRight } from "lucide-react";
 import { useTimeline } from "@/state/timeline";
 import { formatUtc, type Alert } from "@/lib/derive";
 
 function AlertRow({ alert, now }: { alert: Alert; now: number }) {
-  const isDark = alert.type === "dark";
-  const Icon = isDark ? EyeOff : Radio;
-  const accent = isDark ? "var(--danger)" : "var(--danger)";
-  const label = isDark ? "SIGNAL LOSS" : "SPOOFING";
+  const meta =
+    alert.type === "dark"
+      ? { Icon: EyeOff, accent: "var(--danger)", label: "SIGNAL LOSS" }
+      : alert.type === "spoofing"
+        ? { Icon: Radio, accent: "var(--danger)", label: "SPOOFING" }
+        : { Icon: ArrowLeftRight, accent: "var(--amber)", label: "RENDEZVOUS" };
+  const { Icon, accent, label } = meta;
   const ageMin = Math.max(0, Math.round((now - alert.since) / 60_000));
 
   return (
