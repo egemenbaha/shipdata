@@ -163,8 +163,10 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const theaterDerived = useMemo(() => {
     const out = createTheaterBuckets<DerivedVessel>();
     for (const d of allDerived) {
-      const bucket = out[d.vessel.theaterId];
-      if (bucket) bucket.push(d);
+      const tid = d?.vessel?.theaterId as TheaterId | undefined;
+      if (!tid) continue;
+      const bucket = out[tid] ?? (out[tid] = []);
+      bucket.push(d);
     }
     return out;
   }, [allDerived]);
