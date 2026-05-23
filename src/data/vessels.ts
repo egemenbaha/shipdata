@@ -20,7 +20,7 @@ export type Vessel = {
   track: TrackPoint[];
 };
 
-export type TheaterId = "med" | "black" | "hormuz";
+export type TheaterId = "med" | "black" | "hormuz" | "straits";
 
 export type Theater = {
   id: TheaterId;
