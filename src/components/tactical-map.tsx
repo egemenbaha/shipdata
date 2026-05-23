@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import { VesselLayer } from "./vessel-layer";
 import { CorridorLayer } from "./corridor-layer";
 import { RendezvousLayer } from "./rendezvous-layer";
+import { useTimeline } from "@/state/timeline";
 
 function MapReady() {
   const map = useMap();
@@ -12,6 +13,19 @@ function MapReady() {
   }, [map]);
   return null;
 }
+
+function MapFlyController() {
+  const map = useMap();
+  const { flyRequest } = useTimeline();
+  useEffect(() => {
+    if (!flyRequest) return;
+    map.flyTo([flyRequest.lat, flyRequest.lng], Math.max(map.getZoom(), 7), {
+      duration: 1.1,
+    });
+  }, [flyRequest, map]);
+  return null;
+}
+
 
 export function TacticalMap() {
   return (
