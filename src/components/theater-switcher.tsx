@@ -6,6 +6,7 @@ const ENTRIES: Array<{ id: TheaterView; label: string }> = [
   { id: "med", label: "Mediterranean" },
   { id: "black", label: "Black Sea" },
   { id: "hormuz", label: "Hormuz" },
+  { id: "straits", label: "Turkish Straits" },
   { id: "global", label: "Global" },
 ];
 

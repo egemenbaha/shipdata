@@ -20,7 +20,7 @@ export type Vessel = {
   track: TrackPoint[];
 };
 
-export type TheaterId = "med" | "black" | "hormuz";
+export type TheaterId = "med" | "black" | "hormuz" | "straits";
 
 export type Theater = {
   id: TheaterId;
@@ -172,6 +172,32 @@ export const THEATERS: Theater[] = [
       [26.1, 55.2],
     ],
   },
+  {
+    id: "straits",
+    name: "Turkish Straits",
+    shortName: "Straits",
+    blurb: "Dardanelles · Marmara · Bosphorus chokepoint transit",
+    center: [40.9, 28.5],
+    zoom: 7,
+    corridorLabel: "Chokepoint Transit Lane",
+    corridor: [
+      [40.05, 26.10],
+      [40.20, 26.35],
+      [40.45, 26.95],
+      [40.55, 27.60],
+      [40.80, 28.40],
+      [40.95, 28.95],
+      [41.15, 29.05],
+      [41.55, 29.15],
+      [41.65, 29.30],
+      [41.20, 29.25],
+      [40.85, 28.70],
+      [40.55, 28.10],
+      [40.35, 27.20],
+      [40.10, 26.55],
+      [39.95, 26.20],
+    ],
+  },
 ];
 
 // ---- Mediterranean dataset ------------------------------------------------
@@ -314,16 +340,60 @@ const hormuzVessels = withTheater("hormuz", [
   { mmsi: "403555401", name: "JAZIRA CRESCENT",   type: "fishing", flag: "SA", track: makeTrack(26.9, 55.4, 150, 7.2) },
 ]);
 
+// ---- Turkish Straits dataset ----------------------------------------------
+// Chokepoint scenario: vessel goes dark inside the Bosphorus; a tanker
+// "teleports" across the Marmara (spoofing); STS pair drifting in mid-Marmara.
+
+const straitsVessels = withTheater("straits", [
+  // STS pair drifting in mid-Marmara (~40.75N 28.30E)
+  {
+    mmsi: "271990441",
+    name: "MARMARA SAHIN",
+    type: "tanker",
+    flag: "TR",
+    track: rendezvousSegment(makeTrack(40.60, 28.10, 60, 5.0), 4, 16, 40.75, 28.30, 0),
+  },
+  {
+    mmsi: "636019887",
+    name: "LIBERIAN CREST",
+    type: "tanker",
+    flag: "LR",
+    track: rendezvousSegment(makeTrack(40.90, 28.55, 240, 5.0), 4, 16, 40.75, 28.30, 0.16),
+  },
+  {
+    mmsi: "273881002",
+    name: "ROSTOV TRANSIT",
+    type: "tanker",
+    flag: "RU",
+    // Dark inside the Bosphorus at 13:30
+    track: darken(makeTrack(41.10, 29.04, 10, 9.5), TIMELINE_START + 6 * STEP_MS),
+  },
+  {
+    mmsi: "271554118",
+    name: "BOGAZ YILDIZ",
+    type: "cargo",
+    flag: "TR",
+    // Spoof: implausible jump across the Marmara
+    track: spoof(makeTrack(40.30, 26.80, 60, 12.0), 9, 0.5, 1.8),
+  },
+  { mmsi: "271770044", name: "ISTANBUL DAWN",  type: "cargo",  flag: "TR", track: makeTrack(41.20, 29.10, 190, 11.5) },
+  { mmsi: "271223301", name: "CANAKKALE EXP",  type: "cargo",  flag: "TR", track: makeTrack(40.15, 26.40,  60, 13.2) },
+  { mmsi: "636024118", name: "PIRAEUS RUNNER", type: "tanker", flag: "LR", track: makeTrack(40.50, 27.40,  70, 12.6) },
+  { mmsi: "207990012", name: "BURGAS ANCHOR",  type: "fishing", flag: "BG", track: makeTrack(41.40, 29.20,  20,  7.0) },
+]);
+
 // ---- exports --------------------------------------------------------------
 
 export const THEATER_VESSELS: Record<TheaterId, Vessel[]> = {
   med: medVessels,
   black: blackVessels,
   hormuz: hormuzVessels,
+  straits: straitsVessels,
 };
 
 export const vessels: Vessel[] = [
   ...medVessels,
   ...blackVessels,
   ...hormuzVessels,
+  ...straitsVessels,
 ];
