@@ -206,4 +206,36 @@ export const vessels: Vessel[] = [
     flag: "IT",
     track: makeTrack(38.0, 14.5, 80, 12.9),
   },
+
+  // --- 2 RENDEZVOUS vessels (possible STS transfer near smuggling corridor) ---
+  {
+    mmsi: "271604233",
+    name: "ZEYTUN HORIZON",
+    type: "tanker",
+    flag: "TR",
+    // Approach from SW, then drift at (33.70, 22.80) from 13:00 onward.
+    track: rendezvousSegment(
+      makeTrack(33.60, 22.70, 30, 5.0),
+      4,
+      16,
+      33.70,
+      22.80,
+      0,
+    ),
+  },
+  {
+    mmsi: "215889017",
+    name: "NEPHELE M",
+    type: "cargo",
+    flag: "MT",
+    // Approach from NE, then drift ~280 m east of ZEYTUN HORIZON.
+    track: rendezvousSegment(
+      makeTrack(33.80, 22.90, 210, 5.0),
+      4,
+      16,
+      33.70,
+      22.80,
+      0.15,
+    ),
+  },
 ];
