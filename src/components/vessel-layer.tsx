@@ -14,6 +14,7 @@ const STATUS_COLOR = {
   nominal: "var(--nominal)",
   spoofing: "var(--danger)",
   dark: "var(--danger)",
+  course_dev: "var(--amber)",
 } as const;
 
 function vesselIcon(d: DerivedVessel, heading: number) {
