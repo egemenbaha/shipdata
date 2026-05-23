@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
+import { EyeOff, Radio, ArrowLeftRight } from "lucide-react";
 import { Sidebar } from "@/components/sidebar";
 import { TimelineProvider, useTimeline } from "@/state/timeline";
 import { formatUtc } from "@/lib/derive";
