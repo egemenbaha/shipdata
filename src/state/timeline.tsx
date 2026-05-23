@@ -17,10 +17,12 @@ import {
   type Rendezvous,
 } from "@/lib/derive";
 import { useAisStream, type LiveShip } from "@/hooks/use-ais-stream";
+import { useVessels } from "@/hooks/use-vessels";
 import { useAnomalyDetection, type LiveAnomaly } from "@/hooks/use-anomaly-detection";
+import type { VesselRow } from "@/types/db";
 
 // Map AISStream ship_type integer to our internal vessel type bucket.
-function liveShipType(code?: number): "tanker" | "cargo" | "fishing" {
+function liveShipType(code?: number | null): "tanker" | "cargo" | "fishing" {
   if (!code) return "cargo";
   if (code >= 80 && code <= 89) return "tanker";
   if (code === 30) return "fishing";
@@ -28,25 +30,36 @@ function liveShipType(code?: number): "tanker" | "cargo" | "fishing" {
   return "cargo";
 }
 
-// Build a synthetic DerivedVessel from a live AIS ping, applying any live
-// anomaly status (DARK / COURSE_DEV) computed by the detector.
-function liveToDerived(s: LiveShip, anomaly?: LiveAnomaly): DerivedVessel {
-  const point = { t: s.lastUpdate, lat: s.lat, lng: s.lng, speed: s.speed };
-  // Synthesise a "previous" point along the reported course so the marker
-  // can compute a heading arrow even with a single AIS fix.
-  const back = backProject(s.lat, s.lng, s.course, 0.5);
-  const prev = {
-    t: point.t - 60_000,
-    lat: back.lat,
-    lng: back.lng,
-    speed: s.speed,
+// Adapt a DB vessel row into the LiveShip shape consumed by the anomaly engine.
+function vesselToLiveShip(v: VesselRow): LiveShip | null {
+  if (v.last_lat == null || v.last_lon == null) return null;
+  return {
+    mmsi: v.mmsi,
+    lat: v.last_lat,
+    lng: v.last_lon,
+    speed: v.last_speed ?? 0,
+    course: v.last_cog ?? v.last_heading ?? 0,
+    lastUpdate: v.last_seen ? new Date(v.last_seen).getTime() : Date.now(),
+    name: v.name ?? undefined,
+    imo: v.imo ?? undefined,
+    shipType: v.ship_type ?? undefined,
   };
+}
+
+// Build a synthetic DerivedVessel from a DB vessel row + live anomaly status.
+function vesselToDerived(v: VesselRow, anomaly?: LiveAnomaly): DerivedVessel | null {
+  if (v.last_lat == null || v.last_lon == null) return null;
+  const t = v.last_seen ? new Date(v.last_seen).getTime() : Date.now();
+  const point = { t, lat: v.last_lat, lng: v.last_lon, speed: v.last_speed ?? 0 };
+  const heading = v.last_heading ?? v.last_cog ?? 0;
+  const back = backProject(v.last_lat, v.last_lon, heading, 0.5);
+  const prev = { t: t - 60_000, lat: back.lat, lng: back.lng, speed: v.last_speed ?? 0 };
   const status: DerivedVessel["status"] = anomaly?.status ?? "nominal";
   return {
     vessel: {
-      mmsi: s.mmsi,
-      name: s.name?.trim() || `MMSI ${s.mmsi}`,
-      type: liveShipType(s.shipType),
+      mmsi: v.mmsi,
+      name: v.name?.trim() || `MMSI ${v.mmsi}`,
+      type: liveShipType(v.ship_type),
       flag: "LIVE",
       theaterId: "straits",
       track: [prev, point],
@@ -111,14 +124,34 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const [theater, setTheaterState] = useState<TheaterView>("med");
   const nonceRef = useRef(0);
 
-  // Live AIS feed (Turkish Straits bounding box) + live anomaly detection.
-  const { ships: liveShips } = useAisStream();
-  const anomalies = useAnomalyDetection(liveShips);
+  // Keep the WebSocket proxy connection alive — it triggers the Edge Function
+  // which writes UPSERTs into the vessels table. We ignore the relayed
+  // messages; the DB subscription below is the source of truth.
+  useAisStream();
+
+  // Database-driven live vessels (realtime subscription).
+  const { vessels: dbVessels } = useVessels();
+
+  // Adapt to LiveShip shape for the anomaly detector (which already knows
+  // how to compute DARK / COURSE_DEV from this).
+  const liveShipsForDetection = useMemo(() => {
+    const m = new Map<string, LiveShip>();
+    dbVessels.forEach((v) => {
+      const ls = vesselToLiveShip(v);
+      if (ls) m.set(ls.mmsi, ls);
+    });
+    return m;
+  }, [dbVessels]);
+  const anomalies = useAnomalyDetection(liveShipsForDetection);
+
   const liveDerived = useMemo(() => {
     const out: DerivedVessel[] = [];
-    liveShips.forEach((s) => out.push(liveToDerived(s, anomalies.get(s.mmsi))));
+    dbVessels.forEach((v) => {
+      const d = vesselToDerived(v, anomalies.get(v.mmsi));
+      if (d) out.push(d);
+    });
     return out;
-  }, [liveShips, anomalies]);
+  }, [dbVessels, anomalies]);
 
   // Derive all vessels once; filter per view for display.
   const mockDerived = useMemo(() => deriveAll(allVessels, currentTime), [currentTime]);
