@@ -3,7 +3,7 @@
 import type { TrackPoint, Vessel } from "@/data/vessels";
 
 // Great-circle distance in nautical miles.
-function haversineNm(a: TrackPoint, b: TrackPoint): number {
+export function haversineNm(a: TrackPoint, b: TrackPoint): number {
   const R = 3440.065; // Earth radius in nm
   const φ1 = (a.lat * Math.PI) / 180;
   const φ2 = (b.lat * Math.PI) / 180;
@@ -134,22 +134,107 @@ export function deriveAll(vessels: Vessel[], currentTime: number): DerivedVessel
   return vessels.map((v) => deriveVessel(v, currentTime));
 }
 
+// ---- rendezvous detection -----------------------------------------------
+
+// 500 m ≈ 0.27 nm. Allow a touch more for AIS jitter.
+const RENDEZVOUS_NM = 0.32;
+// Both vessels effectively stationary / drifting.
+const RENDEZVOUS_MAX_KTS = 2.5;
+// Sustained: at least N consecutive shared pings (≥45 min at 15-min cadence).
+const RENDEZVOUS_MIN_PINGS = 3;
+
+export type Rendezvous = {
+  id: string;
+  a: DerivedVessel;
+  b: DerivedVessel;
+  since: number;
+  lastT: number;
+  minSeparationNm: number;
+  midpoint: { lat: number; lng: number };
+};
+
+export function computeRendezvous(derived: DerivedVessel[]): Rendezvous[] {
+  const out: Rendezvous[] = [];
+  for (let i = 0; i < derived.length; i++) {
+    for (let j = i + 1; j < derived.length; j++) {
+      const A = derived[i];
+      const B = derived[j];
+      if (!A.lastPoint || !B.lastPoint) continue;
+
+      // Walk shared timestamps, count longest run satisfying the criteria.
+      const byT = new Map(B.visibleTrack.map((p) => [p.t, p]));
+      let runStart: number | null = null;
+      let bestStart: number | null = null;
+      let bestEnd: number | null = null;
+      let bestLen = 0;
+      let bestMinSep = Infinity;
+      let runMinSep = Infinity;
+
+      for (const pa of A.visibleTrack) {
+        const pb = byT.get(pa.t);
+        const ok =
+          pb &&
+          pa.speed <= RENDEZVOUS_MAX_KTS &&
+          pb.speed <= RENDEZVOUS_MAX_KTS &&
+          haversineNm(pa, pb) <= RENDEZVOUS_NM;
+        if (ok && pb) {
+          const sep = haversineNm(pa, pb);
+          if (runStart === null) {
+            runStart = pa.t;
+            runMinSep = sep;
+          } else {
+            runMinSep = Math.min(runMinSep, sep);
+          }
+          const len =
+            A.visibleTrack.filter((p) => p.t >= runStart! && p.t <= pa.t).length;
+          if (len > bestLen) {
+            bestLen = len;
+            bestStart = runStart;
+            bestEnd = pa.t;
+            bestMinSep = runMinSep;
+          }
+        } else {
+          runStart = null;
+          runMinSep = Infinity;
+        }
+      }
+
+      if (bestLen >= RENDEZVOUS_MIN_PINGS && bestStart && bestEnd) {
+        const midLat = (A.lastPoint.lat + B.lastPoint.lat) / 2;
+        const midLng = (A.lastPoint.lng + B.lastPoint.lng) / 2;
+        out.push({
+          id: `rdv-${A.vessel.mmsi}-${B.vessel.mmsi}`,
+          a: A,
+          b: B,
+          since: bestStart,
+          lastT: bestEnd,
+          minSeparationNm: bestMinSep,
+          midpoint: { lat: midLat, lng: midLng },
+        });
+      }
+    }
+  }
+  return out;
+}
+
 export type Kpis = {
   totalVessels: number;
   activeAlerts: number;
   darkVessels: number;
   spoofingAlerts: number;
+  rendezvousAlerts: number;
 };
 
-export function computeKpis(derived: DerivedVessel[]): Kpis {
+export function computeKpis(derived: DerivedVessel[], rendezvous: Rendezvous[] = []): Kpis {
   const visible = derived.filter((d) => d.lastPoint !== null);
   const dark = derived.filter((d) => d.status === "dark").length;
   const spoof = derived.filter((d) => d.status === "spoofing").length;
   return {
     totalVessels: visible.length,
-    activeAlerts: dark + spoof,
+    activeAlerts: dark + spoof + rendezvous.length,
     darkVessels: dark,
     spoofingAlerts: spoof,
+    rendezvousAlerts: rendezvous.length,
   };
 }
 
@@ -158,13 +243,17 @@ export type Alert = {
   mmsi: string;
   name: string;
   flag: string;
-  type: VesselStatus & ("dark" | "spoofing");
-  severity: 1 | 2 | 3; // 3 = highest
-  since: number; // epoch ms when condition started
+  type: "dark" | "spoofing" | "rendezvous";
+  severity: 1 | 2 | 3;
+  since: number;
   detail: string;
 };
 
-export function computeAlerts(derived: DerivedVessel[], currentTime: number): Alert[] {
+export function computeAlerts(
+  derived: DerivedVessel[],
+  currentTime: number,
+  rendezvous: Rendezvous[] = [],
+): Alert[] {
   const alerts: Alert[] = [];
   for (const d of derived) {
     if (d.status === "dark" && d.lastPoint) {
