@@ -78,6 +78,31 @@ function spoof(
   );
 }
 
+// Replace a contiguous slice of pings with a "drift in place" segment near
+// (lat,lng) at very low speed, with a small offset for the partner vessel.
+function rendezvousSegment(
+  track: TrackPoint[],
+  fromIndex: number,
+  toIndex: number,
+  lat: number,
+  lng: number,
+  offsetNm = 0.15, // ~280 m
+): TrackPoint[] {
+  // offsetNm to the east-ish for the partner
+  const dLat = 0;
+  const dLng = offsetNm / (60 * Math.cos((lat * Math.PI) / 180));
+  return track.map((p, i) => {
+    if (i < fromIndex || i > toIndex) return p;
+    const jitter = ((i % 2) - 0.5) * 0.0015;
+    return {
+      t: p.t,
+      lat: lat + dLat + jitter,
+      lng: lng + dLng + jitter,
+      speed: 0.6 + ((i % 3) * 0.2),
+    };
+  });
+}
+
 // ---- dataset --------------------------------------------------------------
 
 export const vessels: Vessel[] = [
