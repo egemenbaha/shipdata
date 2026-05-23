@@ -87,20 +87,23 @@ function HudOverlays() {
         </span>
       </div>
 
-      <div className="pointer-events-none absolute bottom-3 left-3 z-[400] flex gap-2">
+      <div className="pointer-events-none absolute bottom-3 left-3 z-[400] flex flex-wrap gap-2">
         <Legend swatch="nominal" label="Nominal" />
         <Legend swatch="amber" label="Course Deviation" />
         <Legend swatch="danger" label="Dark / Spoofed" />
+        <Legend swatch="corridor" label="Smuggling Corridor" />
       </div>
     </>
   );
 }
 
-function Legend({ swatch, label }: { swatch: "nominal" | "amber" | "danger"; label: string }) {
+function Legend({ swatch, label }: { swatch: "nominal" | "amber" | "danger" | "corridor"; label: string }) {
   const map = {
     nominal: "bg-[var(--nominal)] shadow-[0_0_6px_var(--nominal)]",
     amber: "bg-[var(--amber)] shadow-[0_0_6px_var(--amber)]",
     danger: "bg-[var(--danger)] shadow-[0_0_6px_var(--danger)]",
+    corridor:
+      "bg-transparent border border-dashed border-[var(--amber)] shadow-[0_0_6px_var(--amber)]",
   } as const;
   return (
     <div className="flex items-center gap-1.5 rounded-sm border border-border bg-surface-0/80 px-2 py-1 backdrop-blur-md">
