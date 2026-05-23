@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { TimelineProvider, useTimeline } from "@/state/timeline";
 import { formatUtc } from "@/lib/derive";
+import { TimelineSlider } from "@/components/timeline-slider";
 
 const TacticalMap = lazy(() =>
   import("@/components/tactical-map").then((m) => ({ default: m.TacticalMap })),
@@ -30,6 +31,7 @@ function Dashboard() {
         <main className="relative flex-1">
           <MapStage />
           <HudOverlays />
+          <TimelineSlider />
         </main>
       </div>
     </TimelineProvider>
