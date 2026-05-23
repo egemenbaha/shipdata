@@ -49,35 +49,50 @@ export function useLiveAlerts(limit = 100): DbAlert[] {
 
   useEffect(() => {
     let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    supabase
-      .from("alerts")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(limit)
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error) {
-          console.warn("[alerts] load failed", error.message);
-          return;
-        }
-        setAlerts((data ?? []) as unknown as DbAlert[]);
-      });
+    try {
+      supabase
+        .from("alerts")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(limit)
+        .then(
+          ({ data, error }) => {
+            if (cancelled) return;
+            if (error) {
+              console.warn("[alerts] load failed", error.message);
+              return;
+            }
+            setAlerts((data ?? []) as unknown as DbAlert[]);
+          },
+          (err) => {
+            if (cancelled) return;
+            console.warn("[alerts] load threw", err);
+          },
+        );
 
-    const channel = supabase
-      .channel("alerts-feed")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "alerts" },
-        (payload) => {
-          setAlerts((prev) => [payload.new as DbAlert, ...prev].slice(0, limit));
-        },
-      )
-      .subscribe();
+      channel = supabase
+        .channel("alerts-feed")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "alerts" },
+          (payload) => {
+            try {
+              setAlerts((prev) => [payload.new as DbAlert, ...prev].slice(0, limit));
+            } catch (err) {
+              console.warn("[alerts] realtime handler error", err);
+            }
+          },
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn("[alerts] subscription setup failed", err);
+    }
 
     return () => {
       cancelled = true;
-      void supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [limit]);
 
