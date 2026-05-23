@@ -56,7 +56,7 @@ function AlertRow({ alert, now, onClick }: { alert: Alert; now: number; onClick:
             Since {formatUtc(alert.since)} UTC
           </div>
         </div>
-      </div>
+    </button>
     </div>
   );
 }
