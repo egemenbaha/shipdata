@@ -1,1 +1,4 @@
 project_id = "xypqvowathlqbvzihdbn"
+
+[functions.ais-proxy]
+verify_jwt = false
