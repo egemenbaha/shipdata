@@ -86,6 +86,7 @@ export type DerivedVessel = {
   status: VesselStatus;
   minutesDark: number; // 0 unless status === "dark"
   spoofJump: { from: TrackPoint; to: TrackPoint; impliedKts: number } | null;
+  inCorridor: boolean;
 };
 
 export function deriveVessel(vessel: Vessel, currentTime: number): DerivedVessel {
@@ -122,7 +123,11 @@ export function deriveVessel(vessel: Vessel, currentTime: number): DerivedVessel
     }
   }
 
-  return { vessel, visibleTrack, lastPoint, status, minutesDark, spoofJump };
+  const inCorridor = lastPoint
+    ? pointInCorridor(lastPoint.lat, lastPoint.lng)
+    : false;
+
+  return { vessel, visibleTrack, lastPoint, status, minutesDark, spoofJump, inCorridor };
 }
 
 export function deriveAll(vessels: Vessel[], currentTime: number): DerivedVessel[] {
@@ -163,15 +168,16 @@ export function computeAlerts(derived: DerivedVessel[], currentTime: number): Al
   const alerts: Alert[] = [];
   for (const d of derived) {
     if (d.status === "dark" && d.lastPoint) {
+      const baseSev: 1 | 2 | 3 = d.minutesDark > 60 ? 3 : 2;
       alerts.push({
         id: `${d.vessel.mmsi}-dark`,
         mmsi: d.vessel.mmsi,
         name: d.vessel.name,
         flag: d.vessel.flag,
         type: "dark",
-        severity: d.minutesDark > 60 ? 3 : 2,
+        severity: d.inCorridor ? 3 : baseSev,
         since: d.lastPoint.t,
-        detail: `Last AIS ping ${formatMinutes(d.minutesDark)} ago`,
+        detail: `Last AIS ping ${formatMinutes(d.minutesDark)} ago${d.inCorridor ? " · inside smuggling corridor" : ""}`,
       });
     } else if (d.status === "spoofing" && d.spoofJump) {
       alerts.push({
@@ -182,7 +188,7 @@ export function computeAlerts(derived: DerivedVessel[], currentTime: number): Al
         type: "spoofing",
         severity: 3,
         since: d.spoofJump.to.t,
-        detail: `Implied ${Math.round(d.spoofJump.impliedKts)} kts between pings`,
+        detail: `Implied ${Math.round(d.spoofJump.impliedKts)} kts (max ${MAX_KTS_BY_TYPE[d.vessel.type]} kts for ${d.vessel.type})${d.inCorridor ? " · inside smuggling corridor" : ""}`,
       });
     }
   }
