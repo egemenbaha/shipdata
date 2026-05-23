@@ -1,12 +1,12 @@
 import { Ship, AlertTriangle, EyeOff, Radio } from "lucide-react";
+import { useTimeline } from "@/state/timeline";
 
-type KpiTone = "cyan" | "amber" | "danger" | "muted";
+type KpiTone = "cyan" | "amber" | "danger";
 
 const tones: Record<KpiTone, { text: string; ring: string; glow: string }> = {
   cyan: { text: "text-[var(--cyan)]", ring: "ring-[var(--cyan)]/30", glow: "shadow-[0_0_24px_-8px_var(--cyan)]" },
   amber: { text: "text-[var(--amber)]", ring: "ring-[var(--amber)]/30", glow: "shadow-[0_0_24px_-8px_var(--amber)]" },
   danger: { text: "text-[var(--danger)]", ring: "ring-[var(--danger)]/40", glow: "shadow-[0_0_24px_-8px_var(--danger)]" },
-  muted: { text: "text-foreground", ring: "ring-border", glow: "" },
 };
 
 function Kpi({
@@ -16,7 +16,7 @@ function Kpi({
   icon: Icon,
 }: {
   label: string;
-  value: string;
+  value: number;
   tone: KpiTone;
   icon: React.ComponentType<{ className?: string }>;
 }) {
@@ -32,19 +32,20 @@ function Kpi({
         <Icon className={`h-3.5 w-3.5 ${t.text}`} />
       </div>
       <div className={`mt-1 font-mono text-2xl font-light tabular-nums ${t.text}`}>
-        {value}
+        {String(value).padStart(2, "0")}
       </div>
     </div>
   );
 }
 
 export function KpiPanel() {
+  const { kpis } = useTimeline();
   return (
     <div className="grid grid-cols-2 gap-2 p-3">
-      <Kpi label="Total Vessels" value="—" tone="cyan" icon={Ship} />
-      <Kpi label="Active Alerts" value="—" tone="amber" icon={AlertTriangle} />
-      <Kpi label="Dark Vessels" value="—" tone="danger" icon={EyeOff} />
-      <Kpi label="Spoofing" value="—" tone="danger" icon={Radio} />
+      <Kpi label="Total Vessels" value={kpis.totalVessels} tone="cyan" icon={Ship} />
+      <Kpi label="Active Alerts" value={kpis.activeAlerts} tone="amber" icon={AlertTriangle} />
+      <Kpi label="Dark Vessels" value={kpis.darkVessels} tone="danger" icon={EyeOff} />
+      <Kpi label="Spoofing" value={kpis.spoofingAlerts} tone="danger" icon={Radio} />
     </div>
   );
 }
