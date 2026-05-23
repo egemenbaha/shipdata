@@ -13,8 +13,10 @@ function AlertRow({ alert, now, onClick }: { alert: Alert; now: number; onClick:
   const ageMin = Math.max(0, Math.round((now - alert.since) / 60_000));
 
   return (
-    <div
-      className="group relative cursor-pointer border-b border-border/60 bg-surface-1 px-3 py-2.5 transition-colors hover:bg-surface-2"
+    <button
+      type="button"
+      onClick={onClick}
+      className="group relative block w-full cursor-pointer border-b border-border/60 bg-surface-1 px-3 py-2.5 text-left transition-colors hover:bg-surface-2 focus:outline-none focus-visible:bg-surface-2"
       style={{ borderLeft: `2px solid ${accent}` }}
     >
       <div className="flex items-start gap-2">
