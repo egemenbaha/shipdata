@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 import { vessels, TIMELINE_END } from "@/data/vessels";
 import {
   computeAlerts,
@@ -11,6 +11,8 @@ import {
   type Rendezvous,
 } from "@/lib/derive";
 
+export type FlyRequest = { mmsi: string; lat: number; lng: number; nonce: number };
+
 type TimelineContextValue = {
   currentTime: number;
   setCurrentTime: (t: number) => void;
@@ -20,6 +22,10 @@ type TimelineContextValue = {
   alerts: Alert[];
   selectedMmsi: string | null;
   setSelectedMmsi: (mmsi: string | null) => void;
+  flyRequest: FlyRequest | null;
+  focusVessel: (mmsi: string) => void;
+  playing: boolean;
+  setPlaying: (p: boolean) => void;
 };
 
 const TimelineContext = createContext<TimelineContextValue | null>(null);
@@ -27,11 +33,31 @@ const TimelineContext = createContext<TimelineContextValue | null>(null);
 export function TimelineProvider({ children }: { children: ReactNode }) {
   const [currentTime, setCurrentTime] = useState<number>(TIMELINE_END);
   const [selectedMmsi, setSelectedMmsi] = useState<string | null>(null);
+  const [flyRequest, setFlyRequest] = useState<FlyRequest | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const nonceRef = useRef(0);
 
-  const value = useMemo<TimelineContextValue>(() => {
-    const derived = deriveAll(vessels, currentTime);
-    const rendezvous = computeRendezvous(derived);
-    return {
+  const derived = useMemo(() => deriveAll(vessels, currentTime), [currentTime]);
+  const rendezvous = useMemo(() => computeRendezvous(derived), [derived]);
+
+  const focusVessel = useCallback(
+    (mmsi: string) => {
+      setSelectedMmsi(mmsi);
+      const v = vessels.find((x) => x.mmsi === mmsi);
+      if (!v) return;
+      const pt =
+        [...v.track].reverse().find((p) => p.t <= currentTime) ??
+        v.track[v.track.length - 1];
+      if (pt) {
+        nonceRef.current += 1;
+        setFlyRequest({ mmsi, lat: pt.lat, lng: pt.lng, nonce: nonceRef.current });
+      }
+    },
+    [currentTime],
+  );
+
+  const value = useMemo<TimelineContextValue>(
+    () => ({
       currentTime,
       setCurrentTime,
       derived,
@@ -40,8 +66,13 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
       alerts: computeAlerts(derived, currentTime, rendezvous),
       selectedMmsi,
       setSelectedMmsi,
-    };
-  }, [currentTime, selectedMmsi]);
+      flyRequest,
+      focusVessel,
+      playing,
+      setPlaying,
+    }),
+    [currentTime, derived, rendezvous, selectedMmsi, flyRequest, focusVessel, playing],
+  );
 
   return <TimelineContext.Provider value={value}>{children}</TimelineContext.Provider>;
 }
