@@ -68,6 +68,9 @@
   --cyan-glow: oklch(0.88 0.16 200);
   --amber: oklch(0.8 0.17 75);
   --danger: oklch(0.65 0.26 22);
+  --nominal: oklch(0.78 0.18 150);
+  --amber: oklch(0.8 0.17 75);
+  --danger: oklch(0.65 0.26 22);
   --surface-0: oklch(0.11 0.018 240);
   --surface-1: oklch(0.16 0.022 240);
   --surface-2: oklch(0.21 0.028 240);
