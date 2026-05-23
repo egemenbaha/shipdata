@@ -2,7 +2,6 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 import {
   GLOBAL_VIEW,
   THEATERS,
-  THEATER_VESSELS,
   TIMELINE_END,
   vessels as allVessels,
   type TheaterId,
@@ -49,6 +48,10 @@ type TimelineContextValue = {
 
 const TimelineContext = createContext<TimelineContextValue | null>(null);
 
+function createTheaterBuckets<T>(): Record<TheaterId, T[]> {
+  return Object.fromEntries(THEATERS.map((t) => [t.id, [] as T[]])) as Record<TheaterId, T[]>;
+}
+
 export function TimelineProvider({ children }: { children: ReactNode }) {
   const [currentTime, setCurrentTime] = useState<number>(TIMELINE_END);
   const [selectedMmsi, setSelectedMmsi] = useState<string | null>(null);
@@ -61,13 +64,16 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const allDerived = useMemo(() => deriveAll(allVessels, currentTime), [currentTime]);
 
   const theaterDerived = useMemo(() => {
-    const out = { med: [], black: [], hormuz: [], straits: [] } as Record<TheaterId, DerivedVessel[]>;
-    for (const d of allDerived) out[d.vessel.theaterId].push(d);
+    const out = createTheaterBuckets<DerivedVessel>();
+    for (const d of allDerived) {
+      const bucket = out[d.vessel.theaterId];
+      if (bucket) bucket.push(d);
+    }
     return out;
   }, [allDerived]);
 
   const theaterAlerts = useMemo(() => {
-    const out = { med: [], black: [], hormuz: [], straits: [] } as Record<TheaterId, Alert[]>;
+    const out = createTheaterBuckets<Alert>();
     (Object.keys(out) as TheaterId[]).forEach((id) => {
       const rdv = computeRendezvous(theaterDerived[id]);
       out[id] = computeAlerts(theaterDerived[id], currentTime, rdv);
