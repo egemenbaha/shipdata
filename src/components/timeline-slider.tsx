@@ -12,21 +12,8 @@ const PLAY_STEP_MS = 2 * 60_000; // 2 scenario minutes per tick
 export function TimelineSlider() {
   const { currentTime, setCurrentTime, kpis, playing, setPlaying } = useTimeline();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  void intervalRef;
 
-  // Auto-scrub loop
-  useEffect(() => {
-    if (!playing) return;
-    intervalRef.current = setInterval(() => {
-      setCurrentTime(
-        Math.min(TIMELINE_END, (window as any).__t || currentTime),
-      );
-    }, PLAY_TICK_MS);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-    // We re-create on play toggle only; tick advances via stateful closure below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing]);
 
   // Stable tick that advances time without re-subscribing the interval
   useEffect(() => {
