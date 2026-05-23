@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import { VesselLayer } from "./vessel-layer";
 import { CorridorLayer } from "./corridor-layer";
 import { RendezvousLayer } from "./rendezvous-layer";
+import { StsPairLayer } from "./sts-pair-layer";
 import { TheaterClusterLayer } from "./theater-cluster-layer";
 import { useTimeline } from "@/state/timeline";
 import { GLOBAL_VIEW } from "@/data/vessels";
