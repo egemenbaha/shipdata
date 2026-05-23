@@ -86,7 +86,7 @@ function HudOverlays() {
       </div>
 
       <div className="pointer-events-none absolute bottom-3 left-3 z-[400] flex gap-2">
-        <Legend swatch="cyan" label="Nominal" />
+        <Legend swatch="nominal" label="Nominal" />
         <Legend swatch="amber" label="Course Deviation" />
         <Legend swatch="danger" label="Dark / Spoofed" />
       </div>
@@ -94,9 +94,9 @@ function HudOverlays() {
   );
 }
 
-function Legend({ swatch, label }: { swatch: "cyan" | "amber" | "danger"; label: string }) {
+function Legend({ swatch, label }: { swatch: "nominal" | "amber" | "danger"; label: string }) {
   const map = {
-    cyan: "bg-[var(--cyan)] shadow-[0_0_6px_var(--cyan)]",
+    nominal: "bg-[var(--nominal)] shadow-[0_0_6px_var(--nominal)]",
     amber: "bg-[var(--amber)] shadow-[0_0_6px_var(--amber)]",
     danger: "bg-[var(--danger)] shadow-[0_0_6px_var(--danger)]",
   } as const;
