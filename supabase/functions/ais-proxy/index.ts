@@ -126,8 +126,35 @@ async function persistPosition(mmsi: string, msg: Record<string, unknown>) {
   const speed = Number(pr.Sog ?? 0);
   const cog = Number(pr.Cog ?? 0);
   const heading = Number(pr.TrueHeading ?? pr.Cog ?? 0);
+  const now = Date.now();
   const ts = new Date().toISOString();
   const geom = ewktPoint(lon, lat);
+
+  // --- Spoofing check: implied speed vs. previous fix ---------------------
+  const prev = lastPos.get(mmsi);
+  if (prev) {
+    const dtH = (now - prev.t) / 3.6e6;
+    if (dtH > 0 && dtH < SPOOF_WINDOW_H) {
+      const kn = haversineNm({ lat, lon }, prev) / dtH;
+      if (kn > MAX_PLAUSIBLE_KN) {
+        // Fire-and-forget — don't block ingest on alert insert.
+        raiseSpoofing(mmsi, kn, lat, lon).catch((e) =>
+          console.warn("[ais-proxy] spoof", e),
+        );
+      }
+    }
+  }
+  lastPos.set(mmsi, { lat, lon, t: now });
+
+  // --- Vessel came back: resolve any active DARK alert --------------------
+  // Fire-and-forget; PATCH is idempotent.
+  resolveDarkAlerts(mmsi).catch((e) =>
+    console.warn("[ais-proxy] resolve-dark", e),
+  );
+
+  // --- Throttle DB writes per vessel --------------------------------------
+  if (now - (lastWrite.get(mmsi) ?? 0) < WRITE_THROTTLE_MS) return;
+  lastWrite.set(mmsi, now);
 
   // INSERT into positions (history)
   const posRes = await pgrest("positions", {
