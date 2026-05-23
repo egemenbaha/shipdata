@@ -59,6 +59,7 @@ export function TacticalMap() {
         <>
           <VesselLayer />
           <RendezvousLayer />
+          <StsPairLayer />
         </>
       )}
       <MapReady />
