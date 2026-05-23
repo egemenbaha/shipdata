@@ -46,7 +46,7 @@ const DARK_THRESHOLD_MIN = 25;
 
 // Physical max speed per vessel type, in knots. Any implied speed between
 // two consecutive AIS pings above this is treated as spoofing.
-const MAX_KTS_BY_TYPE: Record<Vessel["type"], number> = {
+export const MAX_KTS_BY_TYPE: Record<Vessel["type"], number> = {
   tanker: 40,
   cargo: 45,
   fishing: 30,

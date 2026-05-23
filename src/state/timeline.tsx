@@ -18,12 +18,15 @@ type TimelineContextValue = {
   rendezvous: Rendezvous[];
   kpis: Kpis;
   alerts: Alert[];
+  selectedMmsi: string | null;
+  setSelectedMmsi: (mmsi: string | null) => void;
 };
 
 const TimelineContext = createContext<TimelineContextValue | null>(null);
 
 export function TimelineProvider({ children }: { children: ReactNode }) {
   const [currentTime, setCurrentTime] = useState<number>(TIMELINE_END);
+  const [selectedMmsi, setSelectedMmsi] = useState<string | null>(null);
 
   const value = useMemo<TimelineContextValue>(() => {
     const derived = deriveAll(vessels, currentTime);
@@ -35,8 +38,10 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
       rendezvous,
       kpis: computeKpis(derived, rendezvous),
       alerts: computeAlerts(derived, currentTime, rendezvous),
+      selectedMmsi,
+      setSelectedMmsi,
     };
-  }, [currentTime]);
+  }, [currentTime, selectedMmsi]);
 
   return <TimelineContext.Provider value={value}>{children}</TimelineContext.Provider>;
 }
