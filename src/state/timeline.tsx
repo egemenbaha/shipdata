@@ -111,13 +111,14 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const [theater, setTheaterState] = useState<TheaterView>("med");
   const nonceRef = useRef(0);
 
-  // Live AIS feed (Turkish Straits bounding box).
+  // Live AIS feed (Turkish Straits bounding box) + live anomaly detection.
   const { ships: liveShips } = useAisStream();
+  const anomalies = useAnomalyDetection(liveShips);
   const liveDerived = useMemo(() => {
     const out: DerivedVessel[] = [];
-    liveShips.forEach((s) => out.push(liveToDerived(s)));
+    liveShips.forEach((s) => out.push(liveToDerived(s, anomalies.get(s.mmsi))));
     return out;
-  }, [liveShips]);
+  }, [liveShips, anomalies]);
 
   // Derive all vessels once; filter per view for display.
   const mockDerived = useMemo(() => deriveAll(allVessels, currentTime), [currentTime]);
