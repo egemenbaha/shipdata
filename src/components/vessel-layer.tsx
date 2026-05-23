@@ -117,9 +117,8 @@ export function VesselLayer() {
 
 function VesselRender({ d }: { d: DerivedVessel }) {
   const { vessel, visibleTrack, lastPoint, status, minutesDark, spoofJump } = d;
-  if (!lastPoint) return null;
 
-  // heading from last two points (fallback 0)
+  // heading from last two points (fallback 0) — hook must run unconditionally
   const heading = useMemo(() => {
     if (visibleTrack.length < 2) return 0;
     return bearingDeg(
@@ -127,6 +126,8 @@ function VesselRender({ d }: { d: DerivedVessel }) {
       visibleTrack[visibleTrack.length - 1],
     );
   }, [visibleTrack]);
+
+  if (!lastPoint) return null;
 
   // trail polyline (last few visible pings)
   const trail: [number, number][] = visibleTrack.map((p) => [p.lat, p.lng]);
