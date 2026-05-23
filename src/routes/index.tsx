@@ -31,6 +31,7 @@ function Dashboard() {
         <main className="relative flex-1">
           <MapStage />
           <HudOverlays />
+          <TimelineSlider />
         </main>
       </div>
     </TimelineProvider>
