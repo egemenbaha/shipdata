@@ -104,18 +104,22 @@ function zigzagPath(
 // ---- main layer ---------------------------------------------------------
 
 export function VesselLayer() {
-  const { derived } = useTimeline();
+  const { derived, setSelectedMmsi } = useTimeline();
 
   return (
     <>
       {derived.map((d) => (
-        <VesselRender key={d.vessel.mmsi} d={d} />
+        <VesselRender
+          key={d.vessel.mmsi}
+          d={d}
+          onSelect={() => setSelectedMmsi(d.vessel.mmsi)}
+        />
       ))}
     </>
   );
 }
 
-function VesselRender({ d }: { d: DerivedVessel }) {
+function VesselRender({ d, onSelect }: { d: DerivedVessel; onSelect: () => void }) {
   const { vessel, visibleTrack, lastPoint, status, minutesDark, spoofJump } = d;
 
   // heading from last two points (fallback 0) — hook must run unconditionally
@@ -244,6 +248,7 @@ function VesselRender({ d }: { d: DerivedVessel }) {
             ? signalLostIcon()
             : vesselIcon(d, heading)
         }
+        eventHandlers={{ click: onSelect }}
       >
         <Tooltip
           direction="top"
