@@ -1,7 +1,7 @@
 import { EyeOff, Radio, Inbox, ArrowLeftRight, Compass } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTimeline } from "@/state/timeline";
-import { formatUtc, type Alert } from "@/lib/derive";
+import { formatMinutes, formatUtc, type Alert } from "@/lib/derive";
 import { useLiveAlerts, type DbAlert, type DbAlertType } from "@/hooks/use-live-alerts";
 import { AlertBriefModal } from "./alert-brief-modal";
 
