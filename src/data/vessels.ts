@@ -116,6 +116,36 @@ function rendezvousSegment(
   });
 }
 
+// Track that runs straight on `bearing1` then sharply turns to `bearing2`
+// at index `turnAt`. Used to seed a COURSE_DEV scenario.
+function turnTrack(
+  startLat: number,
+  startLng: number,
+  bearing1: number,
+  bearing2: number,
+  speedKts: number,
+  turnAt: number,
+  stops: number = 17,
+): TrackPoint[] {
+  const pts: TrackPoint[] = [];
+  let lat = startLat;
+  let lng = startLng;
+  for (let i = 0; i < stops; i++) {
+    pts.push({
+      t: TIMELINE_START + i * STEP_MS,
+      lat,
+      lng,
+      speed: speedKts + Math.sin(i * 1.1) * 0.3,
+    });
+    const nm = speedKts * 0.25;
+    const brg = i < turnAt ? bearing1 : bearing2;
+    const next = step(lat, lng, brg, nm);
+    lat = next.lat;
+    lng = next.lng;
+  }
+  return pts;
+}
+
 // Bind theaterId onto a partial vessel definition.
 function withTheater(theaterId: TheaterId, list: Omit<Vessel, "theaterId">[]): Vessel[] {
   return list.map((v) => ({ ...v, theaterId }));
