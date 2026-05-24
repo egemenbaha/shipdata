@@ -1,6 +1,7 @@
 // All derived state for the dashboard. Pure functions of (vessels, currentTime).
 
 import { THEATERS, type TrackPoint, type Vessel } from "@/data/vessels";
+import { computeRisk } from "@/lib/risk";
 
 // Great-circle distance in nautical miles.
 export function haversineNm(a: TrackPoint, b: TrackPoint): number {
@@ -250,6 +251,8 @@ export type Alert = {
   severity: 1 | 2 | 3;
   since: number;
   detail: string;
+  riskScore: number;
+  riskFactors: { label: string; points: number; detail?: string }[];
 };
 
 export function computeAlerts(
@@ -259,6 +262,7 @@ export function computeAlerts(
 ): Alert[] {
   const alerts: Alert[] = [];
   for (const d of derived) {
+    const risk = computeRisk(d, rendezvous);
     if (d.status === "dark" && d.lastPoint) {
       const baseSev: 1 | 2 | 3 = d.minutesDark > 60 ? 3 : 2;
       alerts.push({
@@ -270,6 +274,8 @@ export function computeAlerts(
         severity: d.inCorridor ? 3 : baseSev,
         since: d.lastPoint.t,
         detail: `Last AIS ping ${formatMinutes(d.minutesDark)} ago${d.inCorridor ? " · inside smuggling corridor" : ""}`,
+        riskScore: risk.total,
+        riskFactors: risk.factors,
       });
     } else if (d.status === "course_dev" && d.lastPoint) {
       alerts.push({
@@ -281,6 +287,8 @@ export function computeAlerts(
         severity: 2,
         since: d.lastPoint.t,
         detail: `Sudden course deviation > 45°`,
+        riskScore: risk.total,
+        riskFactors: risk.factors,
       });
     } else if (d.status === "spoofing" && d.spoofJump) {
       alerts.push({
@@ -292,6 +300,8 @@ export function computeAlerts(
         severity: 3,
         since: d.spoofJump.to.t,
         detail: `Implied ${Math.round(d.spoofJump.impliedKts)} kts (max ${MAX_KTS_BY_TYPE[d.vessel.type]} kts for ${d.vessel.type})${d.inCorridor ? " · inside smuggling corridor" : ""}`,
+        riskScore: risk.total,
+        riskFactors: risk.factors,
       });
     }
   }
@@ -301,6 +311,10 @@ export function computeAlerts(
       r.a.inCorridor ||
       r.b.inCorridor;
     const durMin = (r.lastT - r.since) / 60_000;
+    // Use the higher-risk side of the pair as the rendezvous alert's score.
+    const riskA = computeRisk(r.a, rendezvous);
+    const riskB = computeRisk(r.b, rendezvous);
+    const risk = riskA.total >= riskB.total ? riskA : riskB;
     alerts.push({
       id: r.id,
       mmsi: `${r.a.vessel.mmsi}↔${r.b.vessel.mmsi}`,
@@ -310,10 +324,12 @@ export function computeAlerts(
       severity: inCorr ? 3 : 2,
       since: r.since,
       detail: `Possible STS transfer · ${Math.round(r.minSeparationNm * 1852)} m separation · ${formatMinutes(durMin)} sustained${inCorr ? " · inside smuggling corridor" : ""}`,
+      riskScore: risk.total,
+      riskFactors: risk.factors,
     });
   }
-  // Priority: severity desc, then most-recent first
-  alerts.sort((a, b) => b.severity - a.severity || b.since - a.since);
+  // Priority: computed risk desc, then most-recent first
+  alerts.sort((a, b) => b.riskScore - a.riskScore || b.since - a.since);
   void currentTime;
   return alerts;
 }

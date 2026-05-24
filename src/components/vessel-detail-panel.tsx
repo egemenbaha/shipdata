@@ -3,6 +3,7 @@ import { X, Sparkles, Loader2, Ship, EyeOff, Radio, ArrowLeftRight } from "lucid
 import { useServerFn } from "@tanstack/react-start";
 import { useTimeline } from "@/state/timeline";
 import { MAX_KTS_BY_TYPE, formatMinutes } from "@/lib/derive";
+import { computeRisk } from "@/lib/risk";
 import { generateIntelBrief } from "@/lib/intel-brief.functions";
 
 export function VesselDetailPanel() {
@@ -140,6 +141,10 @@ export function VesselDetailPanel() {
         )}
       </div>
 
+      <RiskBreakdownPanel d={d} rendezvous={rendezvous} accent={accent} />
+
+
+
       <div className="border-t border-border bg-surface-1 px-3 py-2">
         <button
           onClick={onGenerate}
@@ -201,6 +206,97 @@ function Fact({
       >
         {value}
       </span>
+    </div>
+  );
+}
+
+function RiskBreakdownPanel({
+  d,
+  rendezvous,
+  accent,
+}: {
+  d: import("@/lib/derive").DerivedVessel;
+  rendezvous: import("@/lib/derive").Rendezvous[];
+  accent: string;
+}) {
+  const risk = computeRisk(d, rendezvous);
+  const tone =
+    risk.total >= 80
+      ? "var(--danger)"
+      : risk.total >= 40
+        ? "var(--amber)"
+        : "var(--nominal)";
+  return (
+    <div className="border-t border-border bg-surface-0/60 px-3 py-2.5">
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+          Risk Breakdown
+        </span>
+        <span
+          className="font-mono text-[10px] tabular-nums"
+          style={{ color: tone }}
+        >
+          additive · cap 100
+        </span>
+      </div>
+      {risk.factors.length === 0 ? (
+        <div className="rounded-sm border border-dashed border-border px-2 py-1.5 font-mono text-[10px] text-muted-foreground">
+          No risk factors triggered
+        </div>
+      ) : (
+        <ul className="space-y-1">
+          {risk.factors.map((f, i) => (
+            <li
+              key={`${f.label}-${i}`}
+              className="flex items-center justify-between gap-2 font-mono text-[10px]"
+            >
+              <div className="min-w-0">
+                <div className="truncate text-foreground/90">{f.label}</div>
+                {f.detail && (
+                  <div className="truncate text-[9px] text-muted-foreground">
+                    {f.detail}
+                  </div>
+                )}
+              </div>
+              <span
+                className="shrink-0 rounded-sm px-1.5 py-px tabular-nums"
+                style={{
+                  color: tone,
+                  background: `color-mix(in oklab, ${tone} 14%, transparent)`,
+                }}
+              >
+                +{f.points}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-2 flex items-center justify-between border-t border-border pt-1.5">
+        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          Total
+        </span>
+        <span
+          className="font-mono text-[14px] tabular-nums"
+          style={{ color: tone }}
+        >
+          {risk.total}
+          <span className="text-[10px] text-muted-foreground">/100</span>
+        </span>
+      </div>
+      <div
+        className="mt-1.5 h-1 w-full overflow-hidden rounded-sm bg-surface-2"
+        aria-hidden
+      >
+        <div
+          className="h-full"
+          style={{
+            width: `${risk.total}%`,
+            background:
+              "linear-gradient(90deg, var(--nominal) 0%, var(--amber) 50%, var(--danger) 100%)",
+          }}
+        />
+      </div>
+      <span className="sr-only" style={{ color: accent }} />
     </div>
   );
 }

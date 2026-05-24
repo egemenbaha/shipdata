@@ -185,6 +185,7 @@ function computedToFeed(a: Alert): FeedAlert {
     severity: a.severity,
     since: a.since,
     detail: a.detail,
+    riskScore: a.riskScore,
   };
 }
 
