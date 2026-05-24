@@ -324,7 +324,7 @@ const hormuzVessels = withTheater("hormuz", [
     type: "tanker",
     flag: "AE",
     // Spoof: implausible 1.6° jump in 15 min
-    track: spoof(makeTrack(25.7, 57.2, 290, 12.6), 9, 1.4, -1.6),
+    track: spoof(makeTrack(25.7, 57.2, 290, 12.6), 9, 0.35, -0.4),
   },
   {
     mmsi: "422118207",
