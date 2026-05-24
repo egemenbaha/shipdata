@@ -150,6 +150,24 @@ export function deriveVessel(vessel: Vessel, currentTime: number): DerivedVessel
     }
   }
 
+  // Course deviation: sustained > COURSE_DEV_DEG difference between the
+  // vessel's early-segment bearing and its recent-segment bearing. Requires
+  // enough pings on both ends and that the vessel is actually moving.
+  if (status === "nominal" && visibleTrack.length >= 6) {
+    const earlyA = visibleTrack[1];
+    const earlyB = visibleTrack[Math.min(3, visibleTrack.length - 1)];
+    const recentA = visibleTrack[visibleTrack.length - 3];
+    const recentB = visibleTrack[visibleTrack.length - 1];
+    if (recentB.speed > 2 && earlyB.speed > 2) {
+      const earlyBrg = bearingDeg(earlyA, earlyB);
+      const recentBrg = bearingDeg(recentA, recentB);
+      const delta = angularDelta(earlyBrg, recentBrg);
+      if (delta > COURSE_DEV_DEG) {
+        status = "course_dev";
+      }
+    }
+  }
+
   const inCorridor = lastPoint
     ? pointInCorridor(lastPoint.lat, lastPoint.lng)
     : false;
