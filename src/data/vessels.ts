@@ -229,7 +229,7 @@ const medVessels = withTheater("med", [
     name: "STELLA ADRIATICA",
     type: "cargo",
     flag: "IT",
-    track: spoof(makeTrack(37.4, 13.2, 200, 13.5), 11, -1.8, -1.6),
+    track: spoof(makeTrack(37.4, 13.2, 200, 13.5), 11, -0.45, -0.4),
   },
   { mmsi: "271083450", name: "ANATOLIA EXPRESS", type: "cargo",   flag: "TR", track: makeTrack(36.8, 30.5, 230, 15.1) },
   { mmsi: "237554120", name: "POSEIDON IX",      type: "fishing", flag: "GR", track: makeTrack(37.9, 24.8,  70,  8.4) },
