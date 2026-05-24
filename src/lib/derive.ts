@@ -277,18 +277,21 @@ export type Kpis = {
   darkVessels: number;
   spoofingAlerts: number;
   rendezvousAlerts: number;
+  courseDevAlerts: number;
 };
 
 export function computeKpis(derived: DerivedVessel[], rendezvous: Rendezvous[] = []): Kpis {
   const visible = derived.filter((d) => d.lastPoint !== null);
   const dark = derived.filter((d) => d.status === "dark").length;
   const spoof = derived.filter((d) => d.status === "spoofing").length;
+  const courseDev = derived.filter((d) => d.status === "course_dev").length;
   return {
     totalVessels: visible.length,
-    activeAlerts: dark + spoof + rendezvous.length,
+    activeAlerts: dark + spoof + courseDev + rendezvous.length,
     darkVessels: dark,
     spoofingAlerts: spoof,
     rendezvousAlerts: rendezvous.length,
+    courseDevAlerts: courseDev,
   };
 }
 
