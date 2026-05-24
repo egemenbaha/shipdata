@@ -240,7 +240,7 @@ export function AlertFeed() {
             <AlertRow
               key={a.id}
               alert={a}
-              now={Math.max(currentTime, Date.now())}
+              now={currentTime}
               onClick={() => {
                 if (a.dbRow) setBriefAlert(a.dbRow);
                 else focusVessel(a.mmsi);
