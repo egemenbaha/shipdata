@@ -44,6 +44,15 @@ export function computeRisk(d: DerivedVessel, rendezvous: Rendezvous[]): RiskBre
     });
   }
 
+  // Course deviation: +20 (sustained >35° heading change without dark/spoof)
+  if (d.status === "course_dev") {
+    factors.push({
+      label: "Course deviation",
+      points: 20,
+      detail: "Sustained heading change > 35°",
+    });
+  }
+
   // STS / rendezvous: +30, + sustained_hours × 4 (cap +20), + 8 if sep < 300 m
   const sts = rendezvous.find(
     (r) =>
