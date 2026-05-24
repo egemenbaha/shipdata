@@ -274,7 +274,7 @@ const blackVessels = withTheater("black", [
     type: "tanker",
     flag: "RU",
     // Spoof: teleport south of Kerch
-    track: spoof(makeTrack(45.0, 36.1, 200, 10.8), 10, -1.4, -1.7),
+    track: spoof(makeTrack(45.0, 36.1, 200, 10.8), 10, -0.35, -0.425),
   },
   {
     mmsi: "273100847",
