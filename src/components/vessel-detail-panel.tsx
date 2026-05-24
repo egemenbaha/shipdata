@@ -141,6 +141,10 @@ export function VesselDetailPanel() {
         )}
       </div>
 
+      <RiskBreakdownPanel d={d} rendezvous={rendezvous} accent={accent} />
+
+
+
       <div className="border-t border-border bg-surface-1 px-3 py-2">
         <button
           onClick={onGenerate}
