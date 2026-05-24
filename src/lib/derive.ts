@@ -45,6 +45,15 @@ export function projectPoint(
 // (relative to the current timeline value).
 const DARK_THRESHOLD_MIN = 25;
 
+/** Sustained heading change (deg) that flags a vessel as COURSE_DEV. */
+const COURSE_DEV_DEG = 35;
+
+/** Smallest absolute angular difference between two compass headings. */
+function angularDelta(a: number, b: number): number {
+  const d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
+
 // Realistic max plausible speeds per vessel type, in knots. A SPOOFING alert
 // fires when the implied speed between two consecutive AIS pings exceeds the
 // type max by a clear margin (× SPOOF_TRIGGER_MULT) to avoid false positives
