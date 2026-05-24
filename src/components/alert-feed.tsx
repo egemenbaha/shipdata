@@ -69,6 +69,7 @@ function RiskBar({ score }: { score: number }) {
 function AlertRow({ alert, now, onClick }: { alert: FeedAlert; now: number; onClick: () => void }) {
   const { Icon, accent, label } = alertMeta(alert.type);
   const ageMin = Math.max(0, Math.round((now - alert.since) / 60_000));
+  const ageLabel = ageMin === 0 ? "just now" : `${formatMinutes(ageMin)} ago`;
   const score = alert.riskScore ?? alert.severity * 30;
   const isHigh = score >= 80;
   const sub = typeDetail(alert);
@@ -104,7 +105,7 @@ function AlertRow({ alert, now, onClick }: { alert: FeedAlert; now: number; onCl
               {label}
             </span>
             <span className="font-mono text-[9px] tabular-nums text-muted-foreground">
-              T-{ageMin}m
+              Detected {ageLabel}
             </span>
           </div>
           <div className="mt-1 truncate font-mono text-[12px] text-foreground">
