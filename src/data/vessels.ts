@@ -222,7 +222,7 @@ const medVessels = withTheater("med", [
     name: "VALLETTA PRIDE",
     type: "tanker",
     flag: "MT",
-    track: spoof(makeTrack(34.2, 15.6, 90, 11.8), 9, 2.1, 1.4),
+    track: spoof(makeTrack(34.2, 15.6, 90, 11.8), 9, 0.525, 0.35),
   },
   {
     mmsi: "247318906",
