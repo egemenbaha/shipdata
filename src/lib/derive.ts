@@ -260,9 +260,6 @@ export function computeAlerts(
   currentTime: number,
   rendezvous: Rendezvous[] = [],
 ): Alert[] {
-  // Lazy require to avoid a static circular dependency at module-init time.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { computeRisk } = require("@/lib/risk") as typeof import("@/lib/risk");
   const alerts: Alert[] = [];
   for (const d of derived) {
     const risk = computeRisk(d, rendezvous);
