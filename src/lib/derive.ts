@@ -45,13 +45,35 @@ export function projectPoint(
 // (relative to the current timeline value).
 const DARK_THRESHOLD_MIN = 25;
 
-// Physical max speed per vessel type, in knots. Any implied speed between
-// two consecutive AIS pings above this is treated as spoofing.
+// Realistic max plausible speeds per vessel type, in knots. A SPOOFING alert
+// fires when the implied speed between two consecutive AIS pings exceeds the
+// type max by a clear margin (× SPOOF_TRIGGER_MULT) to avoid false positives
+// from normal GPS jitter.
+//
+// Reference figures for genuine ships:
+//   container/cargo 25 · tanker 17 · bulk 16 · general cargo 20
+//   fishing 15 · passenger/fast ferry 40 · tug/other 14
+// Our internal VesselType union only exposes tanker/cargo/fishing; the rest
+// are kept in EXTENDED_MAX_KTS for the live AIS pipeline.
 export const MAX_KTS_BY_TYPE: Record<Vessel["type"], number> = {
-  tanker: 40,
-  cargo: 45,
-  fishing: 30,
+  tanker: 17,
+  cargo: 25,
+  fishing: 15,
 };
+
+export const EXTENDED_MAX_KTS = {
+  container: 25,
+  tanker: 17,
+  bulk: 16,
+  general_cargo: 20,
+  fishing: 15,
+  passenger: 40,
+  tug: 14,
+  other: 14,
+} as const;
+
+/** Multiplier applied to the type max before a jump counts as spoofing. */
+export const SPOOF_TRIGGER_MULT = 1.3;
 
 // Known smuggling/transit corridor for the Mediterranean theater. Kept as a
 // named export for back-compat; the runtime check below considers ALL theaters.
@@ -97,8 +119,9 @@ export function deriveVessel(vessel: Vessel, currentTime: number): DerivedVessel
   const visibleTrack = vessel.track.filter((p) => p.t <= currentTime);
   const lastPoint = visibleTrack.at(-1) ?? null;
 
-  // Spoofing: implied speed above the type-specific physical maximum.
+  // Spoofing: implied speed above type max × trigger multiplier.
   const maxKts = MAX_KTS_BY_TYPE[vessel.type];
+  const triggerKts = maxKts * SPOOF_TRIGGER_MULT;
   let spoofJump: DerivedVessel["spoofJump"] = null;
   for (let i = 1; i < visibleTrack.length; i++) {
     const a = visibleTrack[i - 1];
@@ -106,7 +129,7 @@ export function deriveVessel(vessel: Vessel, currentTime: number): DerivedVessel
     const hours = (b.t - a.t) / 3_600_000;
     if (hours <= 0) continue;
     const kts = haversineNm(a, b) / hours;
-    if (kts > maxKts) {
+    if (kts > triggerKts) {
       spoofJump = { from: a, to: b, impliedKts: kts };
       break;
     }
