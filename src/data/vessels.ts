@@ -222,14 +222,14 @@ const medVessels = withTheater("med", [
     name: "VALLETTA PRIDE",
     type: "tanker",
     flag: "MT",
-    track: spoof(makeTrack(34.2, 15.6, 90, 11.8), 9, 2.1, 1.4),
+    track: spoof(makeTrack(34.2, 15.6, 90, 11.8), 9, 0.525, 0.35),
   },
   {
     mmsi: "247318906",
     name: "STELLA ADRIATICA",
     type: "cargo",
     flag: "IT",
-    track: spoof(makeTrack(37.4, 13.2, 200, 13.5), 11, -1.8, -1.6),
+    track: spoof(makeTrack(37.4, 13.2, 200, 13.5), 11, -0.45, -0.4),
   },
   { mmsi: "271083450", name: "ANATOLIA EXPRESS", type: "cargo",   flag: "TR", track: makeTrack(36.8, 30.5, 230, 15.1) },
   { mmsi: "237554120", name: "POSEIDON IX",      type: "fishing", flag: "GR", track: makeTrack(37.9, 24.8,  70,  8.4) },
@@ -266,7 +266,7 @@ const blackVessels = withTheater("black", [
     type: "tanker",
     flag: "RU",
     // Massive AIS jump from off Sevastopol to off Novorossiysk
-    track: spoof(makeTrack(44.4, 33.2, 80, 11.5), 8, 0.3, 2.4),
+    track: spoof(makeTrack(44.4, 33.2, 80, 11.5), 8, 0.075, 0.6),
   },
   {
     mmsi: "273912004",
@@ -274,7 +274,7 @@ const blackVessels = withTheater("black", [
     type: "tanker",
     flag: "RU",
     // Spoof: teleport south of Kerch
-    track: spoof(makeTrack(45.0, 36.1, 200, 10.8), 10, -1.4, -1.7),
+    track: spoof(makeTrack(45.0, 36.1, 200, 10.8), 10, -0.35, -0.425),
   },
   {
     mmsi: "273100847",
@@ -324,7 +324,7 @@ const hormuzVessels = withTheater("hormuz", [
     type: "tanker",
     flag: "AE",
     // Spoof: implausible 1.6° jump in 15 min
-    track: spoof(makeTrack(25.7, 57.2, 290, 12.6), 9, 1.4, -1.6),
+    track: spoof(makeTrack(25.7, 57.2, 290, 12.6), 9, 0.35, -0.4),
   },
   {
     mmsi: "422118207",
@@ -374,7 +374,7 @@ const straitsVessels = withTheater("straits", [
     type: "cargo",
     flag: "TR",
     // Spoof: implausible jump across the Marmara
-    track: spoof(makeTrack(40.30, 26.80, 60, 12.0), 9, 0.5, 1.8),
+    track: spoof(makeTrack(40.30, 26.80, 60, 12.0), 9, 0.125, 0.45),
   },
   { mmsi: "271770044", name: "ISTANBUL DAWN",  type: "cargo",  flag: "TR", track: makeTrack(41.20, 29.10, 190, 11.5) },
   { mmsi: "271223301", name: "CANAKKALE EXP",  type: "cargo",  flag: "TR", track: makeTrack(40.15, 26.40,  60, 13.2) },
