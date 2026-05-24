@@ -374,7 +374,7 @@ const straitsVessels = withTheater("straits", [
     type: "cargo",
     flag: "TR",
     // Spoof: implausible jump across the Marmara
-    track: spoof(makeTrack(40.30, 26.80, 60, 12.0), 9, 0.5, 1.8),
+    track: spoof(makeTrack(40.30, 26.80, 60, 12.0), 9, 0.125, 0.45),
   },
   { mmsi: "271770044", name: "ISTANBUL DAWN",  type: "cargo",  flag: "TR", track: makeTrack(41.20, 29.10, 190, 11.5) },
   { mmsi: "271223301", name: "CANAKKALE EXP",  type: "cargo",  flag: "TR", track: makeTrack(40.15, 26.40,  60, 13.2) },
