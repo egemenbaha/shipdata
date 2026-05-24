@@ -3,6 +3,7 @@ import { X, Sparkles, Loader2, Ship, EyeOff, Radio, ArrowLeftRight } from "lucid
 import { useServerFn } from "@tanstack/react-start";
 import { useTimeline } from "@/state/timeline";
 import { MAX_KTS_BY_TYPE, formatMinutes } from "@/lib/derive";
+import { computeRisk } from "@/lib/risk";
 import { generateIntelBrief } from "@/lib/intel-brief.functions";
 
 export function VesselDetailPanel() {
