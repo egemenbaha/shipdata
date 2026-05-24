@@ -266,7 +266,7 @@ const blackVessels = withTheater("black", [
     type: "tanker",
     flag: "RU",
     // Massive AIS jump from off Sevastopol to off Novorossiysk
-    track: spoof(makeTrack(44.4, 33.2, 80, 11.5), 8, 0.3, 2.4),
+    track: spoof(makeTrack(44.4, 33.2, 80, 11.5), 8, 0.075, 0.6),
   },
   {
     mmsi: "273912004",
