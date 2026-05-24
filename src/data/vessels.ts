@@ -116,6 +116,36 @@ function rendezvousSegment(
   });
 }
 
+// Track that runs straight on `bearing1` then sharply turns to `bearing2`
+// at index `turnAt`. Used to seed a COURSE_DEV scenario.
+function turnTrack(
+  startLat: number,
+  startLng: number,
+  bearing1: number,
+  bearing2: number,
+  speedKts: number,
+  turnAt: number,
+  stops: number = 17,
+): TrackPoint[] {
+  const pts: TrackPoint[] = [];
+  let lat = startLat;
+  let lng = startLng;
+  for (let i = 0; i < stops; i++) {
+    pts.push({
+      t: TIMELINE_START + i * STEP_MS,
+      lat,
+      lng,
+      speed: speedKts + Math.sin(i * 1.1) * 0.3,
+    });
+    const nm = speedKts * 0.25;
+    const brg = i < turnAt ? bearing1 : bearing2;
+    const next = step(lat, lng, brg, nm);
+    lat = next.lat;
+    lng = next.lng;
+  }
+  return pts;
+}
+
 // Bind theaterId onto a partial vessel definition.
 function withTheater(theaterId: TheaterId, list: Omit<Vessel, "theaterId">[]): Vessel[] {
   return list.map((v) => ({ ...v, theaterId }));
@@ -240,6 +270,14 @@ const medVessels = withTheater("med", [
   { mmsi: "271202118", name: "EGE YILDIZI",      type: "fishing", flag: "TR", track: makeTrack(38.2, 26.6, 200,  7.1) },
   { mmsi: "237890667", name: "KRITI WAVE",       type: "fishing", flag: "GR", track: makeTrack(34.9, 25.3,  20,  6.8) },
   { mmsi: "247440812", name: "SICILIA NORD",     type: "cargo",   flag: "IT", track: makeTrack(38.0, 14.5,  80, 12.9) },
+  {
+    // COURSE_DEV exemplar: planned NE transit, sharp turn south mid-route.
+    mmsi: "237205668",
+    name: "HELLAS DIVERTER",
+    type: "cargo",
+    flag: "GR",
+    track: turnTrack(36.0, 21.0, 60, 145, 11.5, 8),
+  },
   {
     mmsi: "271604233",
     name: "ZEYTUN HORIZON",

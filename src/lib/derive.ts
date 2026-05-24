@@ -45,6 +45,15 @@ export function projectPoint(
 // (relative to the current timeline value).
 const DARK_THRESHOLD_MIN = 25;
 
+/** Sustained heading change (deg) that flags a vessel as COURSE_DEV. */
+const COURSE_DEV_DEG = 35;
+
+/** Smallest absolute angular difference between two compass headings. */
+function angularDelta(a: number, b: number): number {
+  const d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
+
 // Realistic max plausible speeds per vessel type, in knots. A SPOOFING alert
 // fires when the implied speed between two consecutive AIS pings exceeds the
 // type max by a clear margin (× SPOOF_TRIGGER_MULT) to avoid false positives
@@ -150,6 +159,24 @@ export function deriveVessel(vessel: Vessel, currentTime: number): DerivedVessel
     }
   }
 
+  // Course deviation: sustained > COURSE_DEV_DEG difference between the
+  // vessel's early-segment bearing and its recent-segment bearing. Requires
+  // enough pings on both ends and that the vessel is actually moving.
+  if (status === "nominal" && visibleTrack.length >= 6) {
+    const earlyA = visibleTrack[1];
+    const earlyB = visibleTrack[Math.min(3, visibleTrack.length - 1)];
+    const recentA = visibleTrack[visibleTrack.length - 3];
+    const recentB = visibleTrack[visibleTrack.length - 1];
+    if (recentB.speed > 2 && earlyB.speed > 2) {
+      const earlyBrg = bearingDeg(earlyA, earlyB);
+      const recentBrg = bearingDeg(recentA, recentB);
+      const delta = angularDelta(earlyBrg, recentBrg);
+      if (delta > COURSE_DEV_DEG) {
+        status = "course_dev";
+      }
+    }
+  }
+
   const inCorridor = lastPoint
     ? pointInCorridor(lastPoint.lat, lastPoint.lng)
     : false;
@@ -250,18 +277,21 @@ export type Kpis = {
   darkVessels: number;
   spoofingAlerts: number;
   rendezvousAlerts: number;
+  courseDevAlerts: number;
 };
 
 export function computeKpis(derived: DerivedVessel[], rendezvous: Rendezvous[] = []): Kpis {
   const visible = derived.filter((d) => d.lastPoint !== null);
   const dark = derived.filter((d) => d.status === "dark").length;
   const spoof = derived.filter((d) => d.status === "spoofing").length;
+  const courseDev = derived.filter((d) => d.status === "course_dev").length;
   return {
     totalVessels: visible.length,
-    activeAlerts: dark + spoof + rendezvous.length,
+    activeAlerts: dark + spoof + courseDev + rendezvous.length,
     darkVessels: dark,
     spoofingAlerts: spoof,
     rendezvousAlerts: rendezvous.length,
+    courseDevAlerts: courseDev,
   };
 }
 

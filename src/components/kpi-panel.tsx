@@ -1,4 +1,4 @@
-import { Ship, AlertTriangle, EyeOff, Radio, ArrowLeftRight } from "lucide-react";
+import { Ship, AlertTriangle, EyeOff, Radio, ArrowLeftRight, Compass } from "lucide-react";
 import { useTimeline } from "@/state/timeline";
 
 type KpiTone = "cyan" | "amber" | "danger";
@@ -47,6 +47,7 @@ export function KpiPanel() {
       <Kpi label="Dark Vessels" value={kpis.darkVessels} tone="danger" icon={EyeOff} />
       <Kpi label="Spoofing" value={kpis.spoofingAlerts} tone="danger" icon={Radio} />
       <Kpi label="Rendezvous" value={kpis.rendezvousAlerts} tone="amber" icon={ArrowLeftRight} />
+      <Kpi label="Course Dev" value={kpis.courseDevAlerts} tone="amber" icon={Compass} />
     </div>
   );
 }
