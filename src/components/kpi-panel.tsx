@@ -1,4 +1,4 @@
-import { Ship, AlertTriangle, EyeOff, Radio, ArrowLeftRight } from "lucide-react";
+import { Ship, AlertTriangle, EyeOff, Radio, ArrowLeftRight, Compass } from "lucide-react";
 import { useTimeline } from "@/state/timeline";
 
 type KpiTone = "cyan" | "amber" | "danger";
