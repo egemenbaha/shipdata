@@ -271,6 +271,14 @@ const medVessels = withTheater("med", [
   { mmsi: "237890667", name: "KRITI WAVE",       type: "fishing", flag: "GR", track: makeTrack(34.9, 25.3,  20,  6.8) },
   { mmsi: "247440812", name: "SICILIA NORD",     type: "cargo",   flag: "IT", track: makeTrack(38.0, 14.5,  80, 12.9) },
   {
+    // COURSE_DEV exemplar: planned NE transit, sharp turn south mid-route.
+    mmsi: "237205668",
+    name: "HELLAS DIVERTER",
+    type: "cargo",
+    flag: "GR",
+    track: turnTrack(36.0, 21.0, 60, 145, 11.5, 8),
+  },
+  {
     mmsi: "271604233",
     name: "ZEYTUN HORIZON",
     type: "tanker",
